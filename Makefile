@@ -4,12 +4,10 @@ LLVM_BUILD_ARGS?=""
 LLVM_SOURCE_ARCHIVE=lib/llvm-$(LLVM_VERSION).src.tar.xz
 LLVM_RELEASE_DIR=lib/llvm-$(LLVM_VERSION)
 LLVM_INSTALL_DIR=lib/llvm
-ZLIB_LIBRARY?=$(shell find /lib /opt /usr/lib /usr -name libz.a | head -n 1)
-ZLIB_INCLUDE_DIR?=$(shell find /usr /opt -name zlib.h | head -n 1 | xargs dirname)
 PWD?=$(shell pwd)
 
 # By default, use all cores available except one, so things stay responsive.
-NUM_THREADS?=$(shell expr `getconf _NPROCESSORS_ONLN 2>/dev/null` - 1)
+NUM_THREADS?=4
 
 PHONY:
 
@@ -25,7 +23,7 @@ $(LLVM_SOURCE_ARCHIVE):
 # Extract the LLVM project source code to a folder for a release build.
 $(LLVM_RELEASE_DIR): $(LLVM_SOURCE_ARCHIVE)
 	mkdir -p $@
-	tar -xvf $(LLVM_SOURCE_ARCHIVE) --strip-components=1 -C $@
+	tar -xf $(LLVM_SOURCE_ARCHIVE) --strip-components=1 -C $@
 	touch $@
 
 # Configure CMake for the LLVM release build.
@@ -47,8 +45,6 @@ $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 		-DLLVM_ENABLE_Z3_SOLVER=OFF \
 		-DLLVM_ENABLE_ZLIB=FORCE_ON \
 		-DLLVM_ENABLE_ZSTD=OFF \
-		-DZLIB_LIBRARY="$(ZLIB_LIBRARY)" \
-		-DZLIB_INCLUDE_DIR=$(ZLIB_INCLUDE_DIR) \
 		-DLLVM_HAVE_LIBXAR=OFF \
 		-DLLVM_INCLUDE_BENCHMARKS=OFF \
 		-DLLVM_INCLUDE_TESTS=OFF \
