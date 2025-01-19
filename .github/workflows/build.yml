@@ -40,7 +40,7 @@ jobs:
           msystem: MINGW64
           update: true
           install: >-
-            mingw-w64-x86_64-toolchain
+            toolchain
             cmake
             clang
             make
@@ -52,7 +52,6 @@ jobs:
       - name: Build LLVM
         shell: msys2 {0}
         run: |
-          export PATH="/mingw64/bin:$PATH"
           make llvm
 
       - name: Upload Windows artifacts
