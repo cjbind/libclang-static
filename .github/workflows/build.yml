@@ -54,7 +54,7 @@ jobs:
       - name: Build LLVM
         shell: msys2 {0}
         run: |
-          make llvm
+          make llvm LLVM_BUILD_ARGS="-DZLIB_INCLUDE_DIR=/mingw64/include -DZLIB_LIBRARY=/mingw64/lib/libz.a"
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
