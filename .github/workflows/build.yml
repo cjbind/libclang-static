@@ -13,7 +13,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl xz-utils clang make cmake python3 zlib1g-dev
+          sudo apt-get install -y curl xz-utils clang make cmake python3 zlib1g-dev ninja-build
 
       - name: Build LLVM
         run: make llvm
@@ -48,6 +48,7 @@ jobs:
             make
             tar
             curl
+            ninja
 
       - name: Build LLVM
         shell: msys2 {0}

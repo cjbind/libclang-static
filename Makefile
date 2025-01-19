@@ -6,9 +6,6 @@ LLVM_RELEASE_DIR=lib/llvm-$(LLVM_VERSION)
 LLVM_INSTALL_DIR=lib/llvm
 PWD?=$(shell pwd)
 
-# By default, use all cores available except one, so things stay responsive.
-NUM_THREADS?=4
-
 PHONY:
 
 # Download the LLVM project source code.
@@ -23,13 +20,14 @@ $(LLVM_SOURCE_ARCHIVE):
 # Extract the LLVM project source code to a folder for a release build.
 $(LLVM_RELEASE_DIR): $(LLVM_SOURCE_ARCHIVE)
 	mkdir -p $@
-	tar --warning=no-symlink -xf $(LLVM_SOURCE_ARCHIVE) --strip-components=1 -C $@
+	tar --warning=no-symlink -xf $(LLVM_SOURCE_ARCHIVE) --strip-components=1 -C $@ || true
 	touch $@
 
 # Configure CMake for the LLVM release build.
 $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 	mkdir -p $(LLVM_RELEASE_DIR)/build
 	cd $(LLVM_RELEASE_DIR)/build && env CC=clang CXX=clang++ cmake \
+		-G Ninja \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_INSTALL_PREFIX=$(PWD)/$(LLVM_INSTALL_DIR) \
 		-DCMAKE_OSX_ARCHITECTURES='x86_64;arm64' \
@@ -58,7 +56,7 @@ $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 # For convenience of troubleshooting, for now we also include llc and clang.
 llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 	mkdir -p $(LLVM_INSTALL_DIR)
-	make -C $(LLVM_RELEASE_DIR)/build -j$(NUM_THREADS) install
+	ninja tools/clang/tools/libclang/all
 	rm -r $(LLVM_INSTALL_DIR)/share/
 	rm -r $(LLVM_INSTALL_DIR)/lib/clang/
 	rm -r $(LLVM_INSTALL_DIR)/lib/cmake/
