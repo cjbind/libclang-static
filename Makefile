@@ -57,10 +57,11 @@ $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 	mkdir -p $(LLVM_INSTALL_DIR)/lib
 	cd $(LLVM_RELEASE_DIR)/build && ninja tools/clang/tools/libclang/all
-	ar -M <<EOF
-CREATE $(LLVM_RELEASE_DIR)/build/libclang-bundled.a
-$(shell find $(LLVM_RELEASE_DIR)/build/lib -name "*.a" | sed 's/^/ADDLIB /')
-SAVE
-END
-EOF
+	echo "CREATE $(LLVM_RELEASE_DIR)/build/libclang-bundled.a" > archive.mri
+	find $(LLVM_RELEASE_DIR)/build/lib -name "*.a" | sed 's/^/ADDLIB /' >> archive.mri
+	echo "SAVE" >> archive.mri
+	echo "END" >> archive.mri
+	ar -M < archive.mri
+	rm archive.mri
 	mv $(LLVM_RELEASE_DIR)/build/libclang-bundled.a $(LLVM_INSTALL_DIR)/lib/libclang.a
+
