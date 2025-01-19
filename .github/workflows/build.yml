@@ -1,0 +1,63 @@
+name: Build LLVM
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl xz-utils clang make cmake python3 zlib1g-dev
+
+      - name: Build LLVM
+        run: make llvm
+        
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-linux
+          path: lib/llvm/
+          retention-days: 7
+
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            cmake
+            clang
+            make
+            zlib
+            make
+            tar
+            curl
+
+      - name: Build LLVM
+        shell: msys2 {0}
+        run: |
+          export PATH="/mingw64/bin:$PATH"
+          make llvm
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-windows
+          path: lib/llvm/
+          retention-days: 7
