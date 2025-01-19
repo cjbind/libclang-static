@@ -47,6 +47,8 @@ $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 		-DLLVM_INCLUDE_BENCHMARKS=OFF \
 		-DLLVM_INCLUDE_TESTS=OFF \
 		-DLLVM_TOOL_REMARKS_SHLIB_BUILD=OFF \
+		$(if $(MSYSTEM), \
+            -DZLIB_INCLUDE_DIR=/mingw64/include -DZLIB_LIBRARY=/mingw64/lib/libz.a)
 		$(LLVM_BUILD_ARGS) \
 		../llvm
 
