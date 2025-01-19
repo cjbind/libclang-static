@@ -55,11 +55,12 @@ $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 # We remove everything except includes, static libs and the llvm-config binary.
 # For convenience of troubleshooting, for now we also include llc and clang.
 llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
-	mkdir -p $(LLVM_INSTALL_DIR)
-	ninja tools/clang/tools/libclang/all
-	rm -r $(LLVM_INSTALL_DIR)/share/
-	rm -r $(LLVM_INSTALL_DIR)/lib/clang/
-	rm -r $(LLVM_INSTALL_DIR)/lib/cmake/
-	rm -r $(LLVM_INSTALL_DIR)/libexec/
-	rm `ls -rtd $(LLVM_INSTALL_DIR)/bin/* | grep -v llvm-config | grep -v llc | grep -v clang | grep -v lld`
-	rm `ls -rtd $(LLVM_INSTALL_DIR)/bin/* | grep clang- | grep -v -E 'clang-[0-9]+'`
+	mkdir -p $(LLVM_INSTALL_DIR)/lib
+	cd $(LLVM_RELEASE_DIR)/build && ninja tools/clang/tools/libclang/all
+	ar -M <<EOF
+CREATE $(LLVM_RELEASE_DIR)/build/libclang-bundled.a
+$(shell find $(LLVM_RELEASE_DIR)/build/lib -name "*.a" | sed 's/^/ADDLIB /')
+SAVE
+END
+EOF
+	mv $(LLVM_RELEASE_DIR)/build/libclang-bundled.a $(LLVM_INSTALL_DIR)/lib/libclang.a
