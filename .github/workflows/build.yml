@@ -37,19 +37,11 @@ jobs:
           path: lib/llvm/
           retention-days: 7
 
-      - name: Upload ninja.build
-        uses: actions/upload-artifact@v4
-        with:
-          name: ninja-linux-${{ matrix.arch }}
-          path: lib/llvm-19.1.7/build/build.ninja
-
   build-macos:
     strategy:
       matrix:
         include:
-          - os: macos-13
-            arch: x64
-          - os: macos-14
+          - os: macos-15
             arch: arm64
     runs-on: ${{ matrix.os }}
     steps:
@@ -60,7 +52,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          brew install curl xz llvm make cmake python zlib ninja gnu-tar
+          brew install make cmake python zlib ninja
       
       - name: Store zlib path
         id: zlib
@@ -84,12 +76,6 @@ jobs:
           name: llvm-macos-${{ matrix.arch }}
           path: lib/llvm/
           retention-days: 7
-      
-      - name: Upload ninja.build
-        uses: actions/upload-artifact@v4
-        with:
-          name: ninja-macos-${{ matrix.arch }}
-          path: lib/llvm-19.1.7/build/build.ninja
 
 
   build-windows:
@@ -136,9 +122,3 @@ jobs:
           name: llvm-windows-x64
           path: lib/llvm/
           retention-days: 7
-      
-      - name: Upload ninja.build
-        uses: actions/upload-artifact@v4
-        with:
-          name: ninja-windows-x64
-          path: lib/llvm-19.1.7/build/build.ninja
