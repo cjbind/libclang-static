@@ -6,6 +6,13 @@ on:
 
 jobs:
   build-linux:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +28,7 @@ jobs:
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: llvm-linux-x86_64
+          name: llvm-linux-${{ matrix.os }}-${{ matrix.arch }}
           path: lib/llvm/
           retention-days: 7
 
@@ -59,6 +66,6 @@ jobs:
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: llvm-windows-x86_64
+          name: llvm-windows-x64
           path: lib/llvm/
           retention-days: 7

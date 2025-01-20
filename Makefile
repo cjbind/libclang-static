@@ -31,22 +31,22 @@ $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_INSTALL_PREFIX=$(PWD)/$(LLVM_INSTALL_DIR) \
 		-DCMAKE_OSX_ARCHITECTURES='x86_64;arm64' \
-		-DLIBCLANG_BUILD_STATIC=ON \
 		-DLLVM_ENABLE_BINDINGS=OFF \
 		-DLLVM_ENABLE_LIBXML2=OFF \
 		-DLLVM_ENABLE_LTO=OFF \
 		-DLLVM_ENABLE_OCAMLDOC=OFF \
 		-DLLVM_ENABLE_PIC=OFF \
 		-DLLVM_ENABLE_PROJECTS='clang' \
-		-DLLVM_ENABLE_TERMINFO=OFF \
+		-DLLVM_STATIC_LINK_CXX_STDLIB=ON \
 		-DLLVM_ENABLE_WARNINGS=OFF \
 		-DLLVM_ENABLE_Z3_SOLVER=OFF \
 		-DLLVM_ENABLE_ZLIB=FORCE_ON \
 		-DLLVM_ENABLE_ZSTD=OFF \
-		-DLLVM_HAVE_LIBXAR=OFF \
 		-DLLVM_INCLUDE_BENCHMARKS=OFF \
 		-DLLVM_INCLUDE_TESTS=OFF \
+		-DLLVM_INCLUDE_EXAMPLES=OFF \
 		-DLLVM_TOOL_REMARKS_SHLIB_BUILD=OFF \
+		-DZLIB_USE_STATIC_LIBS=ON
 		$(LLVM_BUILD_ARGS) \
 		../llvm
 
@@ -56,12 +56,5 @@ $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 # For convenience of troubleshooting, for now we also include llc and clang.
 llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 	mkdir -p $(LLVM_INSTALL_DIR)/lib
-	cd $(LLVM_RELEASE_DIR)/build && ninja tools/clang/tools/libclang/all
-	echo "CREATE $(LLVM_RELEASE_DIR)/build/libclang-bundled.a" > archive.mri
-	find $(LLVM_RELEASE_DIR)/build/lib -name "*.a" | sed 's/^/ADDLIB /' >> archive.mri
-	echo "SAVE" >> archive.mri
-	echo "END" >> archive.mri
-	ar -M < archive.mri
-	rm archive.mri
-	mv $(LLVM_RELEASE_DIR)/build/libclang-bundled.a $(LLVM_INSTALL_DIR)/lib/libclang.a
+	cd $(LLVM_RELEASE_DIR)/build && ninja install-libclang
 
