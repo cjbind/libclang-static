@@ -62,10 +62,18 @@ jobs:
             make
             git
             tar
+      
+      - name: Configure sccache
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: Build LLVM
         shell: msys2 {0}
         run: |
+          env
           make llvm LLVM_BUILD_ARGS="-DZLIB_INCLUDE_DIR=/mingw64/include -DZLIB_LIBRARY=/mingw64/lib/libz.a -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
         env:
           SCCACHE_GHA_ENABLED: "true"
