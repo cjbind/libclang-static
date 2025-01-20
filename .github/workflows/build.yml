@@ -26,7 +26,7 @@ jobs:
           sudo apt-get install -y curl xz-utils clang make cmake python3 zlib1g-dev ninja-build
 
       - name: Build LLVM
-        run: make llvm LLVM_BUILD_ARGS=" -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+        run: make llvm LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
         env:
           SCCACHE_GHA_ENABLED: "true"
         
