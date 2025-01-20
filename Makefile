@@ -6,6 +6,8 @@ LLVM_RELEASE_DIR=lib/llvm-$(LLVM_VERSION)
 LLVM_INSTALL_DIR=lib/llvm
 PWD?=$(shell pwd)
 
+TAR?=tar
+
 PHONY:
 
 # Download the LLVM project source code.
@@ -20,7 +22,7 @@ $(LLVM_SOURCE_ARCHIVE):
 # Extract the LLVM project source code to a folder for a release build.
 $(LLVM_RELEASE_DIR): $(LLVM_SOURCE_ARCHIVE)
 	mkdir -p $@
-	tar -xf $(LLVM_SOURCE_ARCHIVE) --strip-components=1 -C $@ || true
+	${TAR} -xf $(LLVM_SOURCE_ARCHIVE) --strip-components=1 -C $@ || true
 	touch $@
 
 # Configure CMake for the LLVM release build.
