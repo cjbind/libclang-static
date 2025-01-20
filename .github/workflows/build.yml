@@ -57,7 +57,16 @@ jobs:
           brew install curl xz llvm make cmake python zlib ninja gnu-tar
 
       - name: Build LLVM
-        run: make llvm LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache" TAR=gtar
+        run: |
+          make llvm \
+            LLVM_BUILD_ARGS="
+              -DZLIB_INCLUDE_DIR=$(brew --prefix zlib)/include
+              -DZLIB_LIBRARY=$(brew --prefix zlib)/lib/libz.a
+              -DCMAKE_C_COMPILER_LAUNCHER=sccache
+              -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+            " \
+            TAR=gtar
+
         env:
           SCCACHE_GHA_ENABLED: "true"
         
