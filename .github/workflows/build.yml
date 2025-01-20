@@ -55,17 +55,19 @@ jobs:
       - name: Install dependencies
         run: |
           brew install curl xz llvm make cmake python zlib ninja gnu-tar
+      
+      - name: Store zlib path
+        id: zlib
+        run: |
+          echo "ZLIB_INCLUDE_DIR=$(brew --prefix zlib)/include" >> $GITHUB_OUTPUT
+          echo "ZLIB_LIBRARY=$(brew --prefix zlib)/lib/libz.a" >> $GITHUB_OUTPUT
 
       - name: Build LLVM
-        run: |
-          make llvm \
-            LLVM_BUILD_ARGS="
-              -DZLIB_INCLUDE_DIR=$(brew --prefix zlib)/include
-              -DZLIB_LIBRARY=$(brew --prefix zlib)/lib/libz.a
-              -DCMAKE_C_COMPILER_LAUNCHER=sccache
-              -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
-            " \
-            TAR=gtar
+        run: >
+          make llvm LLVM_BUILD_ARGS="-DZLIB_INCLUDE_DIR=${{ steps.zlib.outputs.ZLIB_INCLUDE_DIR }}
+          -DZLIB_LIBRARY=${{ steps.zlib.outputs.ZLIB_LIBRARY }}
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache" TAR=gtar
 
         env:
           SCCACHE_GHA_ENABLED: "true"
