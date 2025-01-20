@@ -2,7 +2,7 @@ name: Build LLVM
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build-linux:
@@ -19,7 +19,7 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.7
-      
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -29,7 +29,7 @@ jobs:
         run: make llvm LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
         env:
           SCCACHE_GHA_ENABLED: "true"
-        
+
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -49,27 +49,22 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.7
-      
+
       - name: Install dependencies
         run: |
           brew install make cmake python zlib ninja
-      
-      - name: Store zlib path
-        id: zlib
-        run: |
-          echo "ZLIB_INCLUDE_DIR=$(brew --prefix zlib)/include" >> $GITHUB_OUTPUT
-          echo "ZLIB_LIBRARY=$(brew --prefix zlib)/lib/libz.a" >> $GITHUB_OUTPUT
 
       - name: Build LLVM
         run: >
-          make llvm LLVM_BUILD_ARGS="-DZLIB_INCLUDE_DIR=${{ steps.zlib.outputs.ZLIB_INCLUDE_DIR }}
-          -DZLIB_LIBRARY=${{ steps.zlib.outputs.ZLIB_LIBRARY }}
+          make llvm LLVM_BUILD_ARGS="
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=sccache" TAR=gtar
-
         env:
           SCCACHE_GHA_ENABLED: "true"
-        
+          LDFLAGS: "-L/opt/homebrew/opt/zlib/lib"
+          CPPFLAGS: "-I/opt/homebrew/opt/zlib/include"
+          PKG_CONFIG_PATH: "/opt/homebrew/opt/zlib/lib/pkgconfig"
+
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -77,13 +72,12 @@ jobs:
           path: lib/llvm/
           retention-days: 7
 
-
   build-windows:
     runs-on: windows-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
@@ -100,7 +94,7 @@ jobs:
             make
             git
             tar
-      
+
       - name: Configure sccache
         uses: actions/github-script@v7
         with:
