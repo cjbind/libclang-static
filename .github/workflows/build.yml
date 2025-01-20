@@ -33,9 +33,15 @@ jobs:
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: llvm-linux-${{ matrix.os }}-${{ matrix.arch }}
+          name: llvm-linux-${{ matrix.arch }}
           path: lib/llvm/
           retention-days: 7
+
+      - name: Upload ninja.build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ninja-linux-${{ matrix.arch }}
+          path: lib/llvm-19.1.7/build/build.ninja
 
   build-macos:
     strategy:
@@ -78,6 +84,12 @@ jobs:
           name: llvm-macos-${{ matrix.arch }}
           path: lib/llvm/
           retention-days: 7
+      
+      - name: Upload ninja.build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ninja-macos-${{ matrix.arch }}
+          path: lib/llvm-19.1.7/build/build.ninja
 
 
   build-windows:
@@ -124,3 +136,9 @@ jobs:
           name: llvm-windows-x64
           path: lib/llvm/
           retention-days: 7
+      
+      - name: Upload ninja.build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ninja-windows-x64
+          path: lib/llvm-19.1.7/build/build.ninja
