@@ -23,7 +23,9 @@ jobs:
           sudo apt-get install -y curl xz-utils clang make cmake python3 zlib1g-dev ninja-build
 
       - name: Build LLVM
-        run: make llvm
+        run: make llvm LLVM_BUILD_ARGS=" -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+        env:
+          SCCACHE_GHA_ENABLED: "true"
         
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
@@ -56,12 +58,16 @@ jobs:
             make
             git
             tar
-          
+      
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.7
 
       - name: Build LLVM
         shell: msys2 {0}
         run: |
-          make llvm LLVM_BUILD_ARGS="-DZLIB_INCLUDE_DIR=/mingw64/include -DZLIB_LIBRARY=/mingw64/lib/libz.a"
+          make llvm LLVM_BUILD_ARGS="-DZLIB_INCLUDE_DIR=/mingw64/include -DZLIB_LIBRARY=/mingw64/lib/libz.a -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+        env:
+          SCCACHE_GHA_ENABLED: "true"
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
