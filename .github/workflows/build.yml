@@ -54,7 +54,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          brew install curl xz llvm make cmake python zlib ninja
+          brew install curl xz llvm make cmake python zlib ninja tar
 
       - name: Build LLVM
         run: make llvm LLVM_BUILD_ARGS=" -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
