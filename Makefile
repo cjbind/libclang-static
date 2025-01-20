@@ -32,11 +32,12 @@ $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 		-G Ninja \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_INSTALL_PREFIX=$(PWD)/$(LLVM_INSTALL_DIR) \
+		-DLIBCLANG_BUILD_STATIC=ON \
+		-DLLVM_ENABLE_PIC=ON \
 		-DLLVM_ENABLE_BINDINGS=OFF \
 		-DLLVM_ENABLE_LIBXML2=OFF \
 		-DLLVM_ENABLE_LTO=OFF \
 		-DLLVM_ENABLE_OCAMLDOC=OFF \
-		-DLLVM_ENABLE_PIC=OFF \
 		-DLLVM_ENABLE_PROJECTS='clang' \
 		-DLLVM_STATIC_LINK_CXX_STDLIB=ON \
 		-DLLVM_ENABLE_WARNINGS=OFF \
@@ -58,5 +59,5 @@ $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 	mkdir -p $(LLVM_INSTALL_DIR)/lib
 	mkdir -p $(LLVM_INSTALL_DIR)/bin
-	cd $(LLVM_RELEASE_DIR)/build && ninja install-libclang
+	cd $(LLVM_RELEASE_DIR)/build && ninja install-libclang install-libclang_static
 
