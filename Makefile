@@ -60,5 +60,5 @@ $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 	mkdir -p $(LLVM_INSTALL_DIR)/lib
 	mkdir -p $(LLVM_INSTALL_DIR)/bin
-	cd $(LLVM_RELEASE_DIR)/build && ninja install-libclang install-libclang_static
+	cd $(LLVM_RELEASE_DIR)/build && ninja install-clang-libraries
 
