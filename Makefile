@@ -65,8 +65,8 @@ $(OUTPUT_LIB): llvm
 	@rm -f $(OUTPUT_LIB)
 	@tmpdir=$$(mktemp -d); \
 	for lib in $$(find $(LLVM_INSTALL_DIR)/lib -name "*.a" ! -name "*.dll.a"); do \
-	  echo "Extracting objects from $$lib..."; \
-	  (cd $$tmpdir && ar x "$$lib"); \
+	  echo "Extracting objects from $(LLVM_INSTALL_DIR)/lib/$$lib..."; \
+	  (cd $$tmpdir && ar x "$(LLVM_INSTALL_DIR)/lib/$$lib"); \
 	done; \
 	ar -qcs $(OUTPUT_LIB) $$tmpdir/*.o; \
 	ranlib $(OUTPUT_LIB); \
