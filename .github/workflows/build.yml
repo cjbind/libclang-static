@@ -26,7 +26,7 @@ jobs:
           sudo apt-get install -y curl xz-utils clang make cmake python3 ninja-build
 
       - name: Build LLVM
-        run: make llvm LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+        run: make libclang-full.a LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
         env:
           SCCACHE_GHA_ENABLED: "true"
         
@@ -35,6 +35,13 @@ jobs:
         with:
           name: llvm-linux-${{ matrix.arch }}
           path: lib/llvm/
+          retention-days: 7
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libclang-linux-${{ matrix.arch }}
+          path: libclang-full.a
           retention-days: 7
 
   build-macos:
@@ -56,7 +63,7 @@ jobs:
 
       - name: Build LLVM
         run: >
-          make llvm LLVM_BUILD_ARGS="
+          make libclang-full.a LLVM_BUILD_ARGS="
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=sccache" TAR=gtar
 
@@ -68,6 +75,13 @@ jobs:
         with:
           name: llvm-macos-${{ matrix.arch }}
           path: lib/llvm/
+          retention-days: 7
+      
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libclang-macos-${{ matrix.arch }}
+          path: libclang-full.a
           retention-days: 7
 
 
@@ -103,8 +117,7 @@ jobs:
       - name: Build LLVM
         shell: msys2 {0}
         run: |
-          env
-          make llvm LLVM_BUILD_ARGS="-DZLIB_INCLUDE_DIR=/mingw64/include -DZLIB_LIBRARY=/mingw64/lib/libz.a -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+          make libclang-full.a LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
         env:
           SCCACHE_GHA_ENABLED: "true"
 
@@ -113,4 +126,11 @@ jobs:
         with:
           name: llvm-windows-x64
           path: lib/llvm/
+          retention-days: 7
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libclang-windows-x64
+          path: libclang-full.a
           retention-days: 7

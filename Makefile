@@ -6,6 +6,8 @@ LLVM_RELEASE_DIR=lib/llvm-$(LLVM_VERSION)
 LLVM_INSTALL_DIR=lib/llvm
 PWD?=$(shell pwd)
 
+OUTPUT_LIB = libclang-full.a
+
 TAR?=tar
 
 PHONY:
@@ -53,12 +55,14 @@ $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 		$(LLVM_BUILD_ARGS) \
 		../llvm
 
-# Build an install LLVM to the relative install path, so it's ready to use.
-# Then remove all the unnecessary parts we don't need to put in our bundle.
-# We remove everything except includes, static libs and the llvm-config binary.
-# For convenience of troubleshooting, for now we also include llc and clang.
 llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 	mkdir -p $(LLVM_INSTALL_DIR)/lib
 	mkdir -p $(LLVM_INSTALL_DIR)/bin
 	cd $(LLVM_RELEASE_DIR)/build && ninja install-clang-libraries install-llvm-libraries install-clang-headers install-llvm-headers
 
+$(OUTPUT_LIB): llvm
+	@echo "Merging static libraries..."
+	@rm -f $(OUTPUT_LIB)
+	@ar -qc $(OUTPUT_LIB) $(shell find $(LLVM_INSTALL_DIR)/lib -name "*.a" ! -name "*.dll.a")
+	@ranlib $(OUTPUT_LIB)
+	@echo "Created $(OUTPUT_LIB)"
