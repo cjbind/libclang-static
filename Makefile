@@ -72,7 +72,7 @@ $(OUTPUT_LIB): llvm
 	  mkdir -p $$tmpdir/$$libname; \
 	  (cd $$tmpdir/$$libname && ar x "$$abs_lib"); \
 	done; \
-	objs=$$(find $$tmpdir -type f -name "*.obj"); \
+	objs="$$(find $$tmpdir -type f)"; \
 	if [ -n "$$objs" ]; then \
 	  ar -qcs $(OUTPUT_LIB) $$objs; \
 	  ranlib $(OUTPUT_LIB); \
