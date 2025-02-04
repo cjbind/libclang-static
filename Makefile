@@ -60,16 +60,17 @@ llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 	mkdir -p $(LLVM_INSTALL_DIR)/bin
 	cd $(LLVM_RELEASE_DIR)/build && ninja install-clang-libraries install-llvm-libraries install-clang-headers install-llvm-headers
 
-$(OUTPUT_LIB): llvm
+$(OUTPUT_LIB):
 	echo "Merging static libraries..."
 	rm -f $(OUTPUT_LIB)
 	tmpdir=$$(mktemp -d); \
+	echo "Temporary directory: $$tmpdir"; \
 	for lib in $$(find $(LLVM_INSTALL_DIR)/lib -name "*.a" ! -name "*.dll.a"); do \
 	  abs_lib=$$(cd $$(dirname $$lib) && pwd)/$$(basename $$lib); \
 	  echo "Extracting objects from $$abs_lib..."; \
 	  (cd $$tmpdir && ar x "$$abs_lib"); \
 	done; \
-	objs=$$(ls $$tmpdir/*.o 2>/dev/null); \
+	objs=$$(ls $$tmpdir/* 2>/dev/null); \
 	if [ -n "$$objs" ]; then \
 	  ar -qcs $(OUTPUT_LIB) $$objs; \
 	  ranlib $(OUTPUT_LIB); \
