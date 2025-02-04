@@ -63,6 +63,17 @@ llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 $(OUTPUT_LIB): llvm
 	@echo "Merging static libraries..."
 	@rm -f $(OUTPUT_LIB)
-	@ar -qc $(OUTPUT_LIB) $(shell find $(LLVM_INSTALL_DIR)/lib -name "*.a" ! -name "*.dll.a")
-	@ranlib $(OUTPUT_LIB)
+	@tmpdir=$$(mktemp -d); \
+	for lib in $$(find $(LLVM_INSTALL_DIR)/lib -name "*.a" ! -name "*.dll.a"); do \
+	  echo "Extracting objects from $$lib..."; \
+	  (cd $$tmpdir && ar x "$$lib"); \
+	done; \
+	ar -qcs $(OUTPUT_LIB) $$tmpdir/*.o; \
+	ranlib $(OUTPUT_LIB); \
+	rm -rf $$tmpdir; \
 	@echo "Created $(OUTPUT_LIB)"
+
+$(OUTPUT_LIB).gz : $(OUTPUT_LIB)
+	@echo "Compressing $(OUTPUT_LIB)..."
+	@gzip -c $(OUTPUT_LIB) > $(OUTPUT_LIB).gz
+	@echo "Created $(OUTPUT_LIB).gz"
