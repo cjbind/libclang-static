@@ -69,10 +69,15 @@ $(OUTPUT_LIB): llvm
 	  echo "Extracting objects from $$abs_lib..."; \
 	  (cd $$tmpdir && ar x "$$abs_lib"); \
 	done; \
-	ar -qcs $(OUTPUT_LIB) $$tmpdir/*.o; \
-	ranlib $(OUTPUT_LIB); \
-	rm -rf $$tmpdir; \
-	echo "Created $(OUTPUT_LIB)"
+	objs=$$(ls $$tmpdir/*.o 2>/dev/null); \
+	if [ -n "$$objs" ]; then \
+	  ar -qcs $(OUTPUT_LIB) $$objs; \
+	  ranlib $(OUTPUT_LIB); \
+	  echo "Created $(OUTPUT_LIB)"; \
+	else \
+	  echo "No object files extracted, skipping archive creation."; \
+	fi; \
+	rm -rf $$tmpdir
 
 $(OUTPUT_LIB).gz : $(OUTPUT_LIB)
 	echo "Compressing $(OUTPUT_LIB)..."
