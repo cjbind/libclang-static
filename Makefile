@@ -60,7 +60,7 @@ llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 	mkdir -p $(LLVM_INSTALL_DIR)/bin
 	cd $(LLVM_RELEASE_DIR)/build && ninja install-clang-libraries install-llvm-libraries install-clang-headers install-llvm-headers
 
-$(OUTPUT_LIB):
+$(OUTPUT_LIB): llvm
 	echo "Merging static libraries..."
 	rm -f $(OUTPUT_LIB)
 	tmpdir=$$(mktemp -d); \
