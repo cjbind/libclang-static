@@ -61,19 +61,20 @@ llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 	cd $(LLVM_RELEASE_DIR)/build && ninja install-clang-libraries install-llvm-libraries install-clang-headers install-llvm-headers
 
 $(OUTPUT_LIB): llvm
-	@echo "Merging static libraries..."
-	@rm -f $(OUTPUT_LIB)
-	@tmpdir=$$(mktemp -d); \
+	echo "Merging static libraries..."
+	rm -f $(OUTPUT_LIB)
+	tmpdir=$$(mktemp -d); \
 	for lib in $$(find $(LLVM_INSTALL_DIR)/lib -name "*.a" ! -name "*.dll.a"); do \
-	  echo "Extracting objects from $(LLVM_INSTALL_DIR)/lib/$$lib..."; \
-	  (cd $$tmpdir && ar x "$(LLVM_INSTALL_DIR)/lib/$$lib"); \
+	  abs_lib=$$(cd $$(dirname $$lib) && pwd)/$$(basename $$lib); \
+	  echo "Extracting objects from $$abs_lib..."; \
+	  (cd $$tmpdir && ar x "$$abs_lib"); \
 	done; \
 	ar -qcs $(OUTPUT_LIB) $$tmpdir/*.o; \
 	ranlib $(OUTPUT_LIB); \
 	rm -rf $$tmpdir; \
-	@echo "Created $(OUTPUT_LIB)"
+	echo "Created $(OUTPUT_LIB)"
 
 $(OUTPUT_LIB).gz : $(OUTPUT_LIB)
-	@echo "Compressing $(OUTPUT_LIB)..."
-	@gzip -c $(OUTPUT_LIB) > $(OUTPUT_LIB).gz
-	@echo "Created $(OUTPUT_LIB).gz"
+	echo "Compressing $(OUTPUT_LIB)..."
+	gzip -c $(OUTPUT_LIB) > $(OUTPUT_LIB).gz
+	echo "Created $(OUTPUT_LIB).gz"
