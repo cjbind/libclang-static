@@ -72,9 +72,10 @@ $(OUTPUT_LIB): llvm
 	  mkdir -p $$tmpdir/$$libname; \
 	  (cd $$tmpdir/$$libname && ar x "$$abs_lib"); \
 	done; \
-	objs="$$(find $$tmpdir -type f \( -name '*.obj' -o -name '*.o' \) 2>/dev/null)"; \
-	if [ -n "$$objs" ]; then \
-	  ar -qcs $(OUTPUT_LIB) $$objs; \
+	tmpfile=$$tmpdir/obj_list.txt; \
+	find $$tmpdir -type f \( -name '*.obj' -o -name '*.o' \) 2>/dev/null > $$tmpfile; \
+	if [ -s $$tmpfile ]; then \
+	  ar -qcs $(OUTPUT_LIB) @$$tmpfile; \
 	  ranlib $(OUTPUT_LIB); \
 	  echo "Created $(OUTPUT_LIB)"; \
 	else \
