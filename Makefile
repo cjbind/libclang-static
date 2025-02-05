@@ -79,80 +79,125 @@ extract-llvm-objects:
 		echo "[ERROR] Failed to extract from $$abs_lib"; \
 	  fi; \
 	done
-
+	
 .PHONY: extract-std-objects
 extract-std-objects:
 	@uname_str=$$(uname -s); \
 	case "$$uname_str" in \
-		Linux*)    handle_linux ;; \
-		Darwin*)   handle_macos ;; \
-		MINGW*|MSYS*) handle_mingw ;; \
-		*)         echo "Unsupported system: $$uname_str"; exit 1 ;; \
+		Linux*) \
+		echo "Searching for libstdc++.a in Linux..."; \
+		found_lib=$$(find /usr/lib/gcc -name 'libstdc++.a' -print -quit 2>/dev/null); \
+		if [ -n "$$found_lib" ]; then \
+			echo "Found library at $$found_lib"; \
+			libname=$$(basename "$$found_lib" .a); \
+			mkdir -p "$${TMPDIR}/$$libname"; \
+			if (cd "$${TMPDIR}/$$libname" && ar x "$$found_lib"); then \
+				echo "Successfully extracted from $$found_lib"; \
+			else \
+				echo "[ERROR] Failed to extract from $$found_lib"; \
+			fi; \
+		else \
+			echo "libstdc++.a not found in /usr/lib/gcc"; \
+		fi ;; \
+		Darwin*) \
+		echo "Searching for libc++.a in macOS..."; \
+		sdk_path=$$(xcrun --show-sdk-path 2>/dev/null); \
+		if [ -z "$$sdk_path" ]; then \
+			echo "[ERROR] Xcode SDK path not found"; \
+			exit 1; \
+		fi; \
+		found_lib=$$(find "$$sdk_path/usr/lib" -name 'libc++.a' -print -quit 2>/dev/null); \
+		if [ -n "$$found_lib" ]; then \
+			echo "Found library at $$found_lib"; \
+			libname=$$(basename "$$found_lib" .a); \
+			mkdir -p "$${TMPDIR}/$$libname"; \
+			if (cd "$${TMPDIR}/$$libname" && ar x "$$found_lib"); then \
+				echo "Successfully extracted from $$found_lib"; \
+			else \
+				echo "[ERROR] Failed to extract from $$found_lib"; \
+			fi; \
+		else \
+			echo "libc++.a not found in $$sdk_path/usr/lib"; \
+		fi ;; \
+		MINGW*|MSYS*) \
+		echo "Searching for libstdc++.a in MSYS2..."; \
+		found_lib=$$(find /mingw64/lib -maxdepth 1 -name 'libstdc++.a' -print -quit 2>/dev/null); \
+		if [ -n "$$found_lib" ]; then \
+			echo "Found library at $$found_lib"; \
+			libname=$$(basename "$$found_lib" .a); \
+			mkdir -p "$${TMPDIR}/$$libname"; \
+			if (cd "$${TMPDIR}/$$libname" && ar x "$$found_lib"); then \
+				echo "Successfully extracted from $$found_lib"; \
+			else \
+				echo "[ERROR] Failed to extract from $$found_lib"; \
+			fi; \
+		else \
+			echo "libstdc++.a not found in /mingw64/lib"; \
+		fi ;; \
+		*) \
+		echo "Unsupported system: $$uname_str"; exit 1 ;; \
 	esac
 
-define handle_linux
-	echo "Searching for libstdc++.a in Linux..."; \
-	found_lib=$$(find /usr/lib/gcc -name 'libstdc++.a' -print -quit 2>/dev/null); \
-	if [ -n "$$found_lib" ]; then \
-		process_lib "$$found_lib"; \
-	else \
-		echo "libstdc++.a not found in /usr/lib/gcc"; \
-	fi
+
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  OBJ_EXT := .o
+  AR_CMD = ar -qcT
+  ARGS_PASS = direct
+else ifeq ($(OS),Windows_NT)
+  OBJ_EXT := .obj
+  AR_CMD = ar -qcs
+  ARGS_PASS = tmpfile
+else
+  OBJ_EXT := .o
+  AR_CMD = ar -qcs
+  ARGS_PASS = tmpfile
+endif
+
+
+define find-objects
+find $(TMPDIR) -type f -name '*$(OBJ_EXT)' -print0
 endef
 
-define handle_macos
-	echo "Searching for libc++.a in macOS..."; \
-	sdk_path=$$(xcrun --show-sdk-path 2>/dev/null); \
-	if [ -z "$$sdk_path" ]; then \
-		echo "[ERROR] Xcode SDK path not found"; \
-		exit 1; \
-	fi; \
-	found_lib=$$(find "$$sdk_path/usr/lib" -name 'libc++.a' -print -quit 2>/dev/null); \
-	if [ -n "$$found_lib" ]; then \
-		process_lib "$$found_lib"; \
-	else \
-		echo "libc++.a not found in $$sdk_path/usr/lib"; \
-	fi
+
+define create-archive-direct
+@echo "Merging objects directly..."; \
+if xargs -0 $(AR_CMD) $(OUTPUT_LIB) < <(printf "%s\0" $(1)); then \
+  ranlib $(OUTPUT_LIB); \
+  echo "Created $(OUTPUT_LIB) successfully"; \
+else \
+  echo "[ERROR] Archive creation failed"; exit 1; \
+fi
 endef
 
-define handle_mingw
-	echo "Searching for libstdc++.a in MSYS2..."; \
-	found_lib=$$(find /mingw64/lib -maxdepth 1 -name 'libstdc++.a' -print -quit 2>/dev/null); \
-	if [ -n "$$found_lib" ]; then \
-		process_lib "$$found_lib"; \
-	else \
-		echo "libstdc++.a not found in /mingw64/lib"; \
-	fi
-endef
-
-define process_lib
-	echo "Found library at $1"; \
-	libname=$$(basename "$1" .a); \
-	mkdir -p "$(TMPDIR)/$$libname"; \
-	if (cd "$(TMPDIR)/$$libname" && ar x "$1"); then \
-		echo "Successfully extracted from $1"; \
-	else \
-		echo "[ERROR] Failed to extract from $1"; \
-	fi
+define create-archive-tmpfile
+@tmpfile=$$(mktemp); \
+echo "Using temporary file $$tmpfile"; \
+printf "%s\0" $(1) | xargs -0 -n 1000 > $$tmpfile; \
+if $(AR_CMD) $(OUTPUT_LIB) @"$$tmpfile"; then \
+  ranlib $(OUTPUT_LIB); \
+  echo "Created $(OUTPUT_LIB) successfully"; \
+else \
+  echo "[ERROR] Archive creation failed"; exit 1; \
+fi; \
+rm -f "$$tmpfile"
 endef
 
 .PHONY: merge-objects
 merge-objects:
-	@tmpfile=$(TMPDIR)/obj_list.txt; \
-	echo "Generating object file list in $$tmpfile"; \
-	find $(TMPDIR) -type f -name '*.o' > $$tmpfile; \
-	if [ -s $$tmpfile ]; then \
-	  if ar -qcs $(OUTPUT_LIB) @$$tmpfile; then \
-		ranlib $(OUTPUT_LIB); \
-		echo "Created $(OUTPUT_LIB) successfully"; \
-	  else \
-		echo "[ERROR] Failed to create $(OUTPUT_LIB)"; \
-	  fi; \
+	@echo "Scanning for $(OBJ_EXT) files..."; \
+	objects=$$($(find-objects)); \
+	if [ -z "$$objects" ]; then \
+	  echo "No object files found"; \
+	  exit 0; \
+	fi; \
+	echo "Found $$(echo "$$objects" | tr '\0' '\n' | wc -l) object files"; \
+	if [ "$(ARGS_PASS)" = "direct" ]; then \
+	  $(call create-archive-direct,$$objects); \
 	else \
-	  echo "No object files extracted, skipping archive creation."; \
+	  $(call create-archive-tmpfile,$$objects); \
 	fi
 
-# Compress the output archive.
 $(OUTPUT_LIB).gz : $(OUTPUT_LIB)
 	@echo "Compressing $(OUTPUT_LIB)..."
 	@gzip -c $(OUTPUT_LIB) > $(OUTPUT_LIB).gz
