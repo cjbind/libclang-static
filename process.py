@@ -15,6 +15,9 @@ class StaticLibraryMerger:
     def __init__(self, output_lib, llvm_install_dir):
         self.output_lib = Path(output_lib).resolve()
         self.llvm_install_dir = Path(llvm_install_dir).resolve()
+        if not self.llvm_install_dir.is_dir():
+            raise FileNotFoundError(f"Invalid LLVM installation directory: {llvm_install_dir}")
+
         self.tmpdir = None
         self.logger = logging.getLogger(self.__class__.__name__)
         
