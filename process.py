@@ -5,7 +5,6 @@ Static Library Merger - Merges multiple static libraries into a single archive.
 
 import argparse
 import logging
-import os
 import platform
 import subprocess
 import sys
@@ -21,16 +20,8 @@ class StaticLibraryMerger:
         
         # Platform configuration
         self.system = platform.system()
-        self.is_msys = False
-        self._detect_environment()
         self.obj_ext = self._get_obj_ext()
         self.ar_cmd = self._get_ar_command()
-
-    def _detect_environment(self):
-        """Detect MSYS2/Cygwin environment on Windows"""
-        if self.system == 'Windows' and 'MSYSTEM' in os.environ:
-            self.is_msys = True
-            self.logger.debug("Detected MSYS2 environment")
 
     def _get_obj_ext(self):
         """Get platform-specific object file extension"""
@@ -61,16 +52,6 @@ class StaticLibraryMerger:
     def _run_command(self, cmd, cwd=None):
         """Execute a command with MSYS2 path conversion if needed"""
         # Convert paths for MSYS2 environment
-        if self.is_msys:
-            converted_cmd = []
-            for part in cmd:
-                if Path(part).exists():
-                    converted = self._convert_msys_path(part)
-                    converted_cmd.append(converted)
-                else:
-                    converted_cmd.append(part)
-            cmd = converted_cmd
-
         self.logger.debug(f"Executing: {' '.join(cmd)}")
         try:
             subprocess.run(cmd, cwd=cwd, check=True)
@@ -220,11 +201,7 @@ class StaticLibraryMerger:
     def _merge_with_filelist(self, obj_files):
         """Use file list with path conversion for Windows/Linux"""
         with tempfile.NamedTemporaryFile(mode='w+') as tmpfile:
-            # Write POSIX-style paths for MSYS2
-            if self.is_msys:
-                content = '\n'.join(self._convert_msys_path(p) for p in obj_files)
-            else:
-                content = '\n'.join(str(p) for p in obj_files)
+            content = '\n'.join(str(p) for p in obj_files)
             
             tmpfile.write(content)
             tmpfile.flush()

@@ -111,6 +111,7 @@ jobs:
             git
             tar
             gzip
+            python
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.7
