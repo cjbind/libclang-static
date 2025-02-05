@@ -25,6 +25,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl xz-utils clang make cmake python3 ninja-build
 
+      - uses: actions/cache@v4
+        with:
+          path: lib/llvm/llvm-19.1.7
+          key: linux-${{ matrix.arch }}-llvm-19.1.7
+
       - name: Build LLVM
         run: make libclang-full.a.gz LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
         env:
@@ -55,6 +60,11 @@ jobs:
       - name: Install dependencies
         run: |
           brew install make ninja
+
+      - uses: actions/cache@v4
+        with:
+          path: lib/llvm/llvm-19.1.7
+          key: macos-arm64-llvm-19.1.7
 
       - name: Build LLVM
         run: >
@@ -97,23 +107,33 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-sccache
             make
             git
             tar
             gzip
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.7
       
       - name: Configure sccache
+        id: sccache
         uses: actions/github-script@v7
         with:
           script: |
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+            core.exportVariable('SCCACHE_PATH', process.env.SCCACHE_PATH || '');
+
+
+      - uses: actions/cache@v4
+        with:
+          path: lib/llvm/llvm-19.1.7
+          key: windows-x64-llvm-19.1.7
 
       - name: Build LLVM
         shell: msys2 {0}
         run: |
-          make libclang-full.a.gz LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+            make libclang-full.a.gz LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=$SCCACHE_PATH -DCMAKE_CXX_COMPILER_LAUNCHER=$SCCACHE_PATH"
         env:
           SCCACHE_GHA_ENABLED: "true"
 
