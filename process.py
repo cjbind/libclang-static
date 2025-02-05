@@ -165,6 +165,50 @@ class StaticLibraryMerger:
             "libstdc++.a not found in standard locations.\n"
             "Try installing it with: pacman -S mingw-w64-x86_64-gcc"
         )
+    
+    def extract_std_objects(self):
+        """Extract standard library objects"""
+        try:
+            std_lib = self._find_std_library()
+        except Exception as e:
+            self.logger.warning(str(e))
+            return
+
+        self.logger.info(f"Extracting standard library: {std_lib}")
+        lib_name = std_lib.stem
+        output_dir = self.tmpdir / lib_name
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            self._run_command(['ar', 'x', str(std_lib)], cwd=output_dir)
+        except Exception:
+            self.logger.error(f"Failed to extract {std_lib}")
+            raise
+
+    def merge_objects(self):
+        """Merge all object files into final library"""
+        self.logger.info("Merging objects into final library...")
+        
+        # Remove existing library
+        if self.output_lib.exists():
+            self.output_lib.unlink()
+
+        # Collect all object files
+        obj_files = list(self.tmpdir.rglob(f'*{self.obj_ext}'))
+        if not obj_files:
+            self.logger.error("No object files found for merging")
+            raise RuntimeError("No objects to merge")
+            
+        self.logger.info(f"Merging {len(obj_files)} object files")
+
+        # Handle different argument passing methods
+        if self.system == 'Darwin':
+            self._merge_direct(obj_files)
+        else:
+            self._merge_with_filelist(obj_files)
+
+        # Run ranlib after archive creation
+        self._run_ranlib()
 
     def _merge_direct(self, obj_files):
         """Directly pass objects to ar command (macOS)"""
