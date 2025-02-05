@@ -99,6 +99,12 @@ class StaticLibraryMerger:
             self.logger.error(f"Command failed: {e}")
             raise
 
+    def _get_stem(self, path):
+        """Get stem of the path"""
+        if self.system != 'Windows':
+            return path.stem
+        return str(path).replace('\\', '/').split('/')[-1].split('.')[0]
+
     def extract_llvm_objects(self):
         """Extract object files from LLVM static libraries"""
         self.logger.info("Extracting LLVM objects...")
@@ -107,7 +113,7 @@ class StaticLibraryMerger:
             if lib_path.name.endswith('.dll.a'):
                 continue
             
-            lib_name = lib_path.stem
+            lib_name = self._get_stem(lib_path)
             output_dir = self.tmpdir / lib_name
             output_dir.mkdir(parents=True, exist_ok=True)
             
@@ -160,7 +166,7 @@ class StaticLibraryMerger:
             return
 
         self.logger.info(f"Extracting standard library: {std_lib}")
-        lib_name = str(std_lib).replace('\\', '/').split('/')[-1].split('.')[0]
+        lib_name = self._get_stem(std_lib)
         output_dir = self.tmpdir / lib_name
         output_dir.mkdir(parents=True, exist_ok=True)
         
