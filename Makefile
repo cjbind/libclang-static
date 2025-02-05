@@ -54,7 +54,7 @@ $(LLVM_RELEASE_DIR)/build/CMakeCache.txt: $(LLVM_RELEASE_DIR)
 llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 	mkdir -p $(LLVM_INSTALL_DIR)/lib
 	mkdir -p $(LLVM_INSTALL_DIR)/bin
-	cd $(LLVM_RELEASE_DIR)/build && ninja install-clang-libraries install-llvm-libraries install-clang-headers install-llvm-headers
+	cd $(LLVM_RELEASE_DIR)/build && ninja install-clang-libraries install-llvm-libraries
 
 # Merge all static libraries into one archive.
 $(OUTPUT_LIB): llvm
