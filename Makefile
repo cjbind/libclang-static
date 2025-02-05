@@ -57,7 +57,7 @@ llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 	cd $(LLVM_RELEASE_DIR)/build && ninja install-clang-libraries install-llvm-libraries
 
 # Merge all static libraries into one archive.
-$(OUTPUT_LIB): llvm
+$(OUTPUT_LIB): 
 	python process.py --llvm-install-dir $(LLVM_INSTALL_DIR) -o $(OUTPUT_LIB)
 
 
