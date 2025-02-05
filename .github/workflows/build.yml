@@ -35,7 +35,7 @@ jobs:
           key: linux-${{ matrix.arch }}-llvm-19.1.7
 
       - name: Build LLVM
-        if: steps.cache.outputs.cache-hit != 'true' || true
+        if: steps.cache.outputs.cache-hit != 'true'
         run: make llvm LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
         env:
           SCCACHE_GHA_ENABLED: "true"
@@ -79,7 +79,7 @@ jobs:
           key: macos-arm64-llvm-19.1.7
 
       - name: Build LLVM
-        if: steps.cache.outputs.cache-hit != 'true' || true
+        if: steps.cache.outputs.cache-hit != 'true'
         run: >
           make llvm LLVM_BUILD_ARGS="
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
@@ -152,7 +152,7 @@ jobs:
 
       - name: Build LLVM
         shell: msys2 {0}
-        if: steps.cache.outputs.cache-hit != 'true' || true
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
             SCCACHE_PATH_MSYS=$(cygpath "$SCCACHE_PATH")
             make llvm LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=$SCCACHE_PATH_MSYS -DCMAKE_CXX_COMPILER_LAUNCHER=$SCCACHE_PATH_MSYS"
