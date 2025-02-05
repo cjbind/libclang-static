@@ -29,7 +29,13 @@ class StaticLibraryMerger:
 
     def _get_ar_command(self):
         """Get platform-specific ar command parameters"""
-        return ['ar', '-qcT'] if self.system == 'Darwin' else ['ar', '-qcs']
+        if self.system == 'Darwin':
+            return ['ar', '-qcT']
+        if self.system == 'Windows':
+            return ['mingw-w64-x86_64-ar', '-rcs']
+        if self.system == 'Linux':
+            return ['ar', '-rcs']
+        raise RuntimeError(f"Unsupported system: {self.system}")
 
     def _to_unix_path(self, path):
         """Convert path to Unix-style using cygpath -u (Windows only)"""
