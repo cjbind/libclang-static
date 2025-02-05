@@ -161,7 +161,6 @@ jobs:
       - name: Build libclang-full
         shell: msys2 {0}
         run: |
-            where.exe python
             make libclang-full.a.gz 
 
       - name: Upload Windows artifacts
