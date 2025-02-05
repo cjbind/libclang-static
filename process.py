@@ -38,6 +38,9 @@ class StaticLibraryMerger:
 
     def _convert_msys_path(self, path):
         """Convert Windows path to MSYS2 path using cygpath"""
+        if self.system != 'Windows':
+            return path
+
         try:
             result = subprocess.run(
                 ['cygpath', '-u', str(path)],
@@ -171,25 +174,24 @@ class StaticLibraryMerger:
             
             tmpfile.write(content)
             tmpfile.flush()
+
+            path = self._convert_msys_path(tmpfile.name)
             
             # Use relative path for file list
-            file_arg = f'@{tmpfile.name}'
-            cmd = self.ar_cmd + [str(self.output_lib), file_arg]
+            file_arg = f'@{path}'
+            cmd = self.ar_cmd + [self._convert_msys_path(str(self.output_lib)), file_arg]
             self._run_command(cmd)
 
     def _run_ranlib(self):
         """Execute ranlib if needed"""
         self.logger.debug("Running ranlib")
-        self._run_command(['ranlib', str(self.output_lib)])
+        self._run_command(['ranlib', self._convert_msys_path(str(self.output_lib))])
 
     def merge_libraries(self):
         """Main merging workflow"""
         with tempfile.TemporaryDirectory() as tmpdir_win:
             # Convert temporary directory path for MSYS2 on Windows
-            if self.system == 'Windows':
-                tmpdir = self._convert_msys_path(tmpdir_win)
-            else:
-                tmpdir = tmpdir_win
+            tmpdir = self._convert_msys_path(tmpdir_win)
             self.tmpdir = Path(tmpdir)
             self.logger.info(f"Using temporary directory: {self.tmpdir}")
 
