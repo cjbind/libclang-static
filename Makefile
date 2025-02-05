@@ -10,21 +10,17 @@ OUTPUT_LIB = libclang-full.a
 
 TAR?=tar
 
-PHONY:
+.PHONY: all clean llvm
 
 # Download the LLVM project source code.
-#
-# This is a prerequisite for all of the targets that build LLVM.
-# We keep the version as part of the name so that we can download a different
-# version without clobbering the old version we previously downloaded.
 $(LLVM_SOURCE_ARCHIVE):
 	mkdir -p `dirname $@`
 	curl -L --fail ${LLVM_DOWNLOAD_URL} --output $@
 
-# Extract the LLVM project source code to a folder for a release build.
+# Extract the LLVM project source code.
 $(LLVM_RELEASE_DIR): $(LLVM_SOURCE_ARCHIVE)
 	mkdir -p $@
-	${TAR} -xf $(LLVM_SOURCE_ARCHIVE) --strip-components=1 -C $@ || true
+	$(TAR) -xf $(LLVM_SOURCE_ARCHIVE) --strip-components=1 -C $@ || true
 	touch $@
 
 # Configure CMake for the LLVM release build.
@@ -60,11 +56,14 @@ llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 	mkdir -p $(LLVM_INSTALL_DIR)/bin
 	cd $(LLVM_RELEASE_DIR)/build && ninja install-clang-libraries install-llvm-libraries install-clang-headers install-llvm-headers
 
+# Merge all static libraries into one archive.
 $(OUTPUT_LIB): llvm
 	@echo "Merging static libraries..."
 	@rm -f $(OUTPUT_LIB)
 	@tmpdir=$$(mktemp -d); \
 	echo "Temporary directory: $$tmpdir"; \
+	\
+	# 提取 LLVM install 目录下所有静态库的目标文件 \
 	for lib in $$(find $(LLVM_INSTALL_DIR)/lib -name "*.a" ! -name "*.dll.a"); do \
 	  abs_lib=$$(cd $$(dirname $$lib) && pwd)/$$(basename $$lib); \
 	  libname=$$(basename $$lib .a); \
@@ -72,6 +71,27 @@ $(OUTPUT_LIB): llvm
 	  mkdir -p $$tmpdir/$$libname; \
 	  (cd $$tmpdir/$$libname && ar x "$$abs_lib"); \
 	done; \
+	\
+	# 根据系统类型查找 libstdc++.a 和 libc++.a \
+	uname_str=$$(uname); \
+	if echo "$$uname_str" | grep -qi "mingw"; then \
+	  search_dirs="/mingw64/lib"; \
+	elif echo "$$uname_str" | grep -qi "darwin"; then \
+	  search_dirs="/usr/lib"; \
+	else \
+	  search_dirs="/usr/lib /usr/local/lib"; \
+	fi; \
+	for stdlib in libstdc++.a libc++.a; do \
+	  found_lib=$$(find $$search_dirs -maxdepth 2 -name "$$stdlib" 2>/dev/null | head -n1); \
+	  if [ -n "$$found_lib" ]; then \
+	    echo "Found $$stdlib at $$found_lib"; \
+	    libname=$$(basename $$found_lib .a); \
+	    mkdir -p $$tmpdir/$$libname; \
+	    (cd $$tmpdir/$$libname && ar x "$$found_lib"); \
+	  fi; \
+	done; \
+	\
+	# 收集所有提取出的目标文件，并创建最终的静态库 \
 	tmpfile=$$tmpdir/obj_list.txt; \
 	find $$tmpdir -type f \( -name '*.obj' -o -name '*.o' \) 2>/dev/null > $$tmpfile; \
 	if [ -s $$tmpfile ]; then \
@@ -83,7 +103,11 @@ $(OUTPUT_LIB): llvm
 	fi; \
 	rm -rf $$tmpdir
 
+# Compress the output archive.
 $(OUTPUT_LIB).gz : $(OUTPUT_LIB)
-	echo "Compressing $(OUTPUT_LIB)..."
-	gzip -c $(OUTPUT_LIB) > $(OUTPUT_LIB).gz
-	echo "Created $(OUTPUT_LIB).gz"
+	@echo "Compressing $(OUTPUT_LIB)..."
+	@gzip -c $(OUTPUT_LIB) > $(OUTPUT_LIB).gz
+	@echo "Created $(OUTPUT_LIB).gz"
+
+clean:
+	rm -rf $(LLVM_RELEASE_DIR) $(LLVM_SOURCE_ARCHIVE) $(LLVM_INSTALL_DIR) $(OUTPUT_LIB) $(OUTPUT_LIB).gz
