@@ -7,7 +7,6 @@ import argparse
 import logging
 import os
 import platform
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -22,8 +21,22 @@ class StaticLibraryMerger:
         
         # Platform configuration
         self.system = platform.system()
-        self.obj_ext = '.obj' if self.system == 'Windows' else '.o'
+        self.is_msys = False
+        self._detect_environment()
+        self.obj_ext = self._get_obj_ext()
         self.ar_cmd = self._get_ar_command()
+
+    def _detect_environment(self):
+        """Detect MSYS2/Cygwin environment on Windows"""
+        if self.system == 'Windows' and 'MSYSTEM' in os.environ:
+            self.is_msys = True
+            self.logger.debug("Detected MSYS2 environment")
+
+    def _get_obj_ext(self):
+        """Get platform-specific object file extension"""
+        if self.system == 'Windows':
+            return '.obj'
+        return '.o'
 
     def _get_ar_command(self):
         """Get platform-specific ar command parameters"""
@@ -31,8 +44,33 @@ class StaticLibraryMerger:
             return ['ar', '-qcT']  # macOS
         return ['ar', '-qcs']      # Linux/Windows
 
+    def _convert_msys_path(self, path):
+        """Convert Windows path to MSYS2 path using cygpath"""
+        try:
+            result = subprocess.run(
+                ['cygpath', '-u', str(path)],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            return result.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f"Path conversion failed: {e.stderr.strip()}")
+            raise
+
     def _run_command(self, cmd, cwd=None):
-        """Execute a command with error checking"""
+        """Execute a command with MSYS2 path conversion if needed"""
+        # Convert paths for MSYS2 environment
+        if self.is_msys:
+            converted_cmd = []
+            for part in cmd:
+                if Path(part).exists():
+                    converted = self._convert_msys_path(part)
+                    converted_cmd.append(converted)
+                else:
+                    converted_cmd.append(part)
+            cmd = converted_cmd
+
         self.logger.debug(f"Executing: {' '.join(cmd)}")
         try:
             subprocess.run(cmd, cwd=cwd, check=True)
@@ -76,80 +114,80 @@ class StaticLibraryMerger:
         raise FileNotFoundError("libstdc++.a not found in /usr/lib/gcc")
 
     def _find_macos_std_lib(self):
-        """Find libc++.a on macOS"""
+        """Find libc++.a on macOS with enhanced search"""
         try:
-            sdk_path = subprocess.check_output(['xcrun', '--show-sdk-path'],
-                                              text=True).strip()
-        except subprocess.CalledProcessError:
-            raise RuntimeError("Xcode SDK path not found")
-        
-        lib_path = Path(sdk_path) / 'usr/lib/libc++.a'
-        if lib_path.exists():
-            return lib_path
-        raise FileNotFoundError(f"libc++.a not found in {lib_path.parent}")
+            # Get SDK path using xcrun
+            sdk_path = subprocess.check_output(
+                ['xcrun', '--show-sdk-path'],
+                text=True, 
+                stderr=subprocess.PIPE
+            ).strip()
+        except subprocess.CalledProcessError as e:
+            error_msg = (
+                "Failed to find Xcode SDK path.\n"
+                "Make sure Xcode command line tools are installed.\n"
+                "Try running: xcode-select --install"
+            )
+            raise RuntimeError(error_msg) from e
+
+        # Try multiple potential locations
+        search_paths = [
+            Path(sdk_path) / 'usr/lib/libc++.a',
+            Path('/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libc++.a'),
+            Path('/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libc++.a')
+        ]
+
+        for lib_path in search_paths:
+            if lib_path.exists():
+                self.logger.debug(f"Found libc++.a at {lib_path}")
+                return lib_path
+
+        raise FileNotFoundError(
+            "libc++.a not found in standard locations.\n"
+            "Possible solutions:\n"
+            "1. Install Xcode command line tools: xcode-select --install\n"
+            "2. Verify Xcode SDK path: xcrun --show-sdk-path"
+        )
 
     def _find_windows_std_lib(self):
-        """Find libstdc++.a on Windows (MSYS2)"""
-        for path in Path('/mingw64/lib').glob('libstdc++.a'):
-            return path
-        raise FileNotFoundError("libstdc++.a not found in /mingw64/lib")
+        """Find libstdc++.a on Windows with MSYS2 support"""
+        # Try multiple possible locations
+        search_paths = [
+            Path('/mingw64/lib/libstdc++.a'),
+        ]
 
-    def extract_std_objects(self):
-        """Extract standard library objects"""
-        try:
-            std_lib = self._find_std_library()
-        except Exception as e:
-            self.logger.warning(str(e))
-            return
+        for lib_path in search_paths:
+            if lib_path.exists():
+                self.logger.debug(f"Found libstdc++.a at {lib_path}")
+                return lib_path
 
-        self.logger.info(f"Extracting standard library: {std_lib}")
-        lib_name = std_lib.stem
-        output_dir = self.tmpdir / lib_name
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        try:
-            self._run_command(['ar', 'x', str(std_lib)], cwd=output_dir)
-        except Exception:
-            self.logger.error(f"Failed to extract {std_lib}")
-            raise
-
-    def merge_objects(self):
-        """Merge all object files into final library"""
-        self.logger.info("Merging objects into final library...")
-        
-        # Remove existing library
-        if self.output_lib.exists():
-            self.output_lib.unlink()
-
-        # Collect all object files
-        obj_files = list(self.tmpdir.rglob(f'*{self.obj_ext}'))
-        if not obj_files:
-            self.logger.error("No object files found for merging")
-            raise RuntimeError("No objects to merge")
-            
-        self.logger.info(f"Merging {len(obj_files)} object files")
-
-        # Handle different argument passing methods
-        if self.system == 'Darwin':
-            self._merge_direct(obj_files)
-        else:
-            self._merge_with_filelist(obj_files)
-
-        # Run ranlib after archive creation
-        self._run_ranlib()
+        raise FileNotFoundError(
+            "libstdc++.a not found in standard locations.\n"
+            "Try installing it with: pacman -S mingw-w64-x86_64-gcc"
+        )
 
     def _merge_direct(self, obj_files):
         """Directly pass objects to ar command (macOS)"""
-        cmd = self.ar_cmd + [str(self.output_lib)] + [str(p) for p in obj_files]
+        # Convert paths for macOS if needed
+        cmd = self.ar_cmd + [str(self.output_lib)] 
+        cmd += [str(p) for p in obj_files]
         self._run_command(cmd)
 
     def _merge_with_filelist(self, obj_files):
-        """Use file list for Windows/Linux to avoid argument limits"""
+        """Use file list with path conversion for Windows/Linux"""
         with tempfile.NamedTemporaryFile(mode='w+') as tmpfile:
-            tmpfile.write('\n'.join(str(p) for p in obj_files))
+            # Write POSIX-style paths for MSYS2
+            if self.is_msys:
+                content = '\n'.join(self._convert_msys_path(p) for p in obj_files)
+            else:
+                content = '\n'.join(str(p) for p in obj_files)
+            
+            tmpfile.write(content)
             tmpfile.flush()
             
-            cmd = self.ar_cmd + [str(self.output_lib)] + ['@' + tmpfile.name]
+            # Use relative path for file list
+            file_arg = f'@{tmpfile.name}'
+            cmd = self.ar_cmd + [str(self.output_lib), file_arg]
             self._run_command(cmd)
 
     def _run_ranlib(self):
