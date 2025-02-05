@@ -154,7 +154,8 @@ jobs:
         shell: msys2 {0}
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-            SCCACHE_PATH_MSYS=$(cygpath "$SCCACHE_PATH")
+            export SCCACHE_PATH_MSYS=$(cygpath "$SCCACHE_PATH")
+            export SCCACHE_GHA_ENABLED="true"
             make llvm LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=$SCCACHE_PATH_MSYS -DCMAKE_CXX_COMPILER_LAUNCHER=$SCCACHE_PATH_MSYS"
 
       - name: Build libclang-full
