@@ -13,13 +13,14 @@ from pathlib import Path
 
 class StaticLibraryMerger:
     def __init__(self, output_lib, llvm_install_dir):
+        self.system = platform.system()
         self.output_lib = Path(output_lib).resolve()
         self.llvm_install_dir = Path(llvm_install_dir).resolve()
+
         self.tmpdir = None
         self.logger = logging.getLogger(self.__class__.__name__)
         
         # Platform configuration
-        self.system = platform.system()
         self.obj_ext = self._get_obj_ext()
         self.ar_cmd = self._get_ar_command()
 
@@ -183,7 +184,12 @@ class StaticLibraryMerger:
 
     def merge_libraries(self):
         """Main merging workflow"""
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir_win:
+            # Convert temporary directory path for MSYS2 on Windows
+            if self.system == 'Windows':
+                tmpdir = self._convert_msys_path(tmpdir_win)
+            else:
+                tmpdir = tmpdir_win
             self.tmpdir = Path(tmpdir)
             self.logger.info(f"Using temporary directory: {self.tmpdir}")
 
