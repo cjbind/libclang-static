@@ -133,7 +133,8 @@ jobs:
       - name: Build LLVM
         shell: msys2 {0}
         run: |
-            make libclang-full.a.gz LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=$SCCACHE_PATH -DCMAKE_CXX_COMPILER_LAUNCHER=$SCCACHE_PATH"
+            SCCACHE_PATH_MSYS=$(cygpath "$SCCACHE_PATH")
+            make libclang-full.a.gz LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=$SCCACHE_PATH_MSYS -DCMAKE_CXX_COMPILER_LAUNCHER=$SCCACHE_PATH_MSYS"
         env:
           SCCACHE_GHA_ENABLED: "true"
 
