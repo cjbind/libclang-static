@@ -23,6 +23,9 @@ class StaticLibraryMerger:
         
         # Platform configuration
         self.system = platform.system()
+        if self.system.startswith('MSYS'):
+            self.system = 'Windows'
+
         logging.info(f"Detected system: {self.system}")
 
         self.obj_ext = self._get_obj_ext()
@@ -34,8 +37,6 @@ class StaticLibraryMerger:
     
     def _get_ar(self):
         """Get platform-specific ar command"""
-        if self.system == 'Windows':
-            return 'mingw-w64-x86_64-ar'
         return 'ar'
 
     def _get_ar_command(self):
@@ -85,9 +86,9 @@ class StaticLibraryMerger:
         # Convert all path arguments to Unix-style
         converted_cmd = [self._to_unix_path(arg) if Path(arg).exists() else arg for arg in cmd]
         # Keep cwd as native path
-        self.logger.debug(f"Executing: {' '.join(converted_cmd)}")
+        self.logger.info(f"Executing: {' '.join(converted_cmd)}")
         if cwd:
-            self.logger.debug(f"Working directory: {cwd}")
+            self.logger.info(f"Working directory: {cwd}")
         try:
             subprocess.run(
                 converted_cmd,
@@ -111,7 +112,7 @@ class StaticLibraryMerger:
             output_dir.mkdir(parents=True, exist_ok=True)
             
             unix_lib_path = self._to_unix_path(lib_path)
-            self.logger.debug(f"Extracting {unix_lib_path} to {output_dir}")
+            self.logger.info(f"Extracting {unix_lib_path} to {output_dir}")
 
             self._run_command([self._get_ar(), 'x', unix_lib_path], cwd=output_dir)
 
@@ -139,7 +140,7 @@ class StaticLibraryMerger:
 
         for lib_path in search_paths:
             if lib_path.exists():
-                self.logger.debug(f"Found libstdc++.a at {lib_path}")
+                self.logger.info(f"Found libstdc++.a at {lib_path}")
                 return lib_path
 
         raise FileNotFoundError(
@@ -159,7 +160,7 @@ class StaticLibraryMerger:
             return
 
         self.logger.info(f"Extracting standard library: {std_lib}")
-        lib_name = std_lib.stem
+        lib_name = str(std_lib).replace('\\', '/').split('/')[-1].split('.')[0]
         output_dir = self.tmpdir / lib_name
         output_dir.mkdir(parents=True, exist_ok=True)
         
@@ -215,7 +216,7 @@ class StaticLibraryMerger:
 
     def _run_ranlib(self):
         """Execute ranlib if needed"""
-        self.logger.debug("Running ranlib")
+        self.logger.info("Running ranlib")
         unix_output = self._to_unix_path(self.output_lib)
         self._run_command(['ranlib', unix_output])
 
@@ -226,8 +227,8 @@ class StaticLibraryMerger:
             self.logger.info(f"Using temporary directory: {self.tmpdir}")
 
             try:
-                self.extract_llvm_objects()
                 self.extract_std_objects()
+                self.extract_llvm_objects()
                 self.merge_objects()
             except Exception as e:
                 self.logger.error(f"Merging failed: {e}")
