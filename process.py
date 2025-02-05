@@ -13,34 +13,28 @@ from pathlib import Path
 
 class StaticLibraryMerger:
     def __init__(self, output_lib, llvm_install_dir):
-        self.system = platform.system()
         self.output_lib = Path(output_lib).resolve()
         self.llvm_install_dir = Path(llvm_install_dir).resolve()
-
         self.tmpdir = None
         self.logger = logging.getLogger(self.__class__.__name__)
         
         # Platform configuration
+        self.system = platform.system()
         self.obj_ext = self._get_obj_ext()
         self.ar_cmd = self._get_ar_command()
 
     def _get_obj_ext(self):
         """Get platform-specific object file extension"""
-        if self.system == 'Windows':
-            return '.obj'
-        return '.o'
+        return '.obj' if self.system == 'Windows' else '.o'
 
     def _get_ar_command(self):
         """Get platform-specific ar command parameters"""
-        if self.system == 'Darwin':
-            return ['ar', '-qcT']  # macOS
-        return ['ar', '-qcs']      # Linux/Windows
+        return ['ar', '-qcT'] if self.system == 'Darwin' else ['ar', '-qcs']
 
-    def _convert_msys_path(self, path):
-        """Convert Windows path to MSYS2 path using cygpath"""
+    def _to_unix_path(self, path):
+        """Convert path to Unix-style using cygpath -u (Windows only)"""
         if self.system != 'Windows':
-            return path
-
+            return str(path)
         try:
             result = subprocess.run(
                 ['cygpath', '-u', str(path)],
@@ -50,15 +44,39 @@ class StaticLibraryMerger:
             )
             return result.stdout.strip()
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"Path conversion failed: {e.stderr.strip()}")
+            self.logger.error(f"Unix path conversion failed: {e.stderr.strip()}")
+            raise
+
+    def _to_win_path(self, path):
+        """Convert path to Windows-style using cygpath -w (Windows only)"""
+        if self.system != 'Windows':
+            return str(path)
+        try:
+            result = subprocess.run(
+                ['cygpath', '-w', str(path)],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            return result.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f"Windows path conversion failed: {e.stderr.strip()}")
             raise
 
     def _run_command(self, cmd, cwd=None):
-        """Execute a command with MSYS2 path conversion if needed"""
-        # Convert paths for MSYS2 environment
-        self.logger.debug(f"Executing: {' '.join(cmd)}")
+        """Execute command with proper path conversions"""
+        # Convert all path arguments to Unix-style
+        converted_cmd = [self._to_unix_path(arg) if Path(arg).exists() else arg for arg in cmd]
+        # Keep cwd as native path
+        self.logger.debug(f"Executing: {' '.join(converted_cmd)}")
+        if cwd:
+            self.logger.debug(f"Working directory: {cwd}")
         try:
-            subprocess.run(cmd, cwd=cwd, check=True)
+            subprocess.run(
+                converted_cmd,
+                cwd=str(cwd) if cwd else None,
+                check=True
+            )
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Command failed: {e}")
             raise
@@ -75,12 +93,9 @@ class StaticLibraryMerger:
             output_dir = self.tmpdir / lib_name
             output_dir.mkdir(parents=True, exist_ok=True)
             
-            self.logger.debug(f"Extracting {lib_path} to {output_dir}")
-            try:
-                self._run_command(['ar', 'x', str(lib_path)], cwd=output_dir)
-            except Exception:
-                self.logger.error(f"Failed to extract {lib_path}")
-                raise
+            unix_lib_path = self._to_unix_path(lib_path)
+            self.logger.debug(f"Extracting {unix_lib_path} to {output_dir}")
+            self._run_command(['ar', 'x', unix_lib_path], cwd=output_dir)
 
     def _find_std_library(self):
         """Find platform-specific standard library"""
@@ -88,6 +103,8 @@ class StaticLibraryMerger:
             return self._find_linux_std_lib()
         if self.system == 'Windows':
             return self._find_windows_std_lib()
+        if self.system == 'Darwin':
+            return None  # macOS uses dynamic linking
         raise RuntimeError(f"Unsupported system: {self.system}")
 
     def _find_linux_std_lib(self):
@@ -98,9 +115,8 @@ class StaticLibraryMerger:
 
     def _find_windows_std_lib(self):
         """Find libstdc++.a on Windows with MSYS2 support"""
-        # Try multiple possible locations
         search_paths = [
-            Path('/mingw64/lib/libstdc++.a'),
+            Path(self._to_win_path('/mingw64/lib/libstdc++.a')),
         ]
 
         for lib_path in search_paths:
@@ -112,11 +128,11 @@ class StaticLibraryMerger:
             "libstdc++.a not found in standard locations.\n"
             "Try installing it with: pacman -S mingw-w64-x86_64-gcc"
         )
-    
+
     def extract_std_objects(self):
         """Extract standard library objects"""
         if self.system == 'Darwin':
-            return # dynamic link libc++ for macOS
+            return
 
         try:
             std_lib = self._find_std_library()
@@ -129,15 +145,15 @@ class StaticLibraryMerger:
         output_dir = self.tmpdir / lib_name
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        try:
-            self._run_command(['ar', 'x', str(std_lib)], cwd=output_dir)
-        except Exception:
-            self.logger.error(f"Failed to extract {std_lib}")
-            raise
+        unix_std_lib = self._to_unix_path(std_lib)
+        self._run_command(['ar', 'x', unix_std_lib], cwd=output_dir)
 
     def merge_objects(self):
         """Merge all object files into final library"""
         self.logger.info("Merging objects into final library...")
+        
+        # Ensure output directory exists
+        self.output_lib.parent.mkdir(parents=True, exist_ok=True)
         
         # Remove existing library
         if self.output_lib.exists():
@@ -151,7 +167,7 @@ class StaticLibraryMerger:
             
         self.logger.info(f"Merging {len(obj_files)} object files")
 
-        # Handle different argument passing methods
+        # Handle different merging strategies
         if self.system == 'Darwin':
             self._merge_direct(obj_files)
         else:
@@ -162,36 +178,32 @@ class StaticLibraryMerger:
 
     def _merge_direct(self, obj_files):
         """Directly pass objects to ar command (macOS)"""
-        # Convert paths for macOS if needed
-        cmd = self.ar_cmd + [str(self.output_lib)] 
-        cmd += [str(p) for p in obj_files]
+        unix_output = self._to_unix_path(self.output_lib)
+        cmd = self.ar_cmd + [unix_output]
+        cmd += [self._to_unix_path(p) for p in obj_files]
         self._run_command(cmd)
 
     def _merge_with_filelist(self, obj_files):
-        """Use file list with path conversion for Windows/Linux"""
+        """Use file list for Windows/Linux"""
         with tempfile.NamedTemporaryFile(mode='w+') as tmpfile:
-            content = '\n'.join(str(p) for p in obj_files)
-            
+            # Write Unix-style paths to the file list
+            content = '\n'.join(self._to_unix_path(p) for p in obj_files)
             tmpfile.write(content)
             tmpfile.flush()
 
-            path = self._convert_msys_path(tmpfile.name)
-            
-            # Use relative path for file list
-            file_arg = f'@{path}'
-            cmd = self.ar_cmd + [self._convert_msys_path(str(self.output_lib)), file_arg]
+            unix_output = self._to_unix_path(self.output_lib)
+            cmd = self.ar_cmd + [unix_output, f'@{tmpfile.name}']
             self._run_command(cmd)
 
     def _run_ranlib(self):
         """Execute ranlib if needed"""
         self.logger.debug("Running ranlib")
-        self._run_command(['ranlib', self._convert_msys_path(str(self.output_lib))])
+        unix_output = self._to_unix_path(self.output_lib)
+        self._run_command(['ranlib', unix_output])
 
     def merge_libraries(self):
         """Main merging workflow"""
-        with tempfile.TemporaryDirectory() as tmpdir_win:
-            # Convert temporary directory path for MSYS2 on Windows
-            tmpdir = self._convert_msys_path(tmpdir_win)
+        with tempfile.TemporaryDirectory() as tmpdir:
             self.tmpdir = Path(tmpdir)
             self.logger.info(f"Using temporary directory: {self.tmpdir}")
 
