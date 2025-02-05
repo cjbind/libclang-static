@@ -23,6 +23,8 @@ class StaticLibraryMerger:
         
         # Platform configuration
         self.system = platform.system()
+        logging.info(f"Detected system: {self.system}")
+
         self.obj_ext = self._get_obj_ext()
         self.ar_cmd = self._get_ar_command()
 
