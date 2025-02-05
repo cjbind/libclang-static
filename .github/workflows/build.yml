@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl xz-utils clang make cmake python3 ninja-build libstdc++-dev
+          sudo apt-get install -y curl xz-utils clang make cmake python3 ninja-build libstdc++-14-dev
 
       - uses: actions/cache@v4
         with:
