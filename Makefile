@@ -58,22 +58,31 @@ llvm: $(LLVM_RELEASE_DIR)/build/CMakeCache.txt
 
 # Merge all static libraries into one archive.
 $(OUTPUT_LIB): llvm
-	@echo "Merging static libraries..."
-	@rm -f $(OUTPUT_LIB)
 	@tmpdir=$$(mktemp -d); \
-	echo "Temporary directory: $$tmpdir"; \
-	\
-	# 提取 LLVM install 目录下所有静态库的目标文件 \
-	for lib in $$(find $(LLVM_INSTALL_DIR)/lib -name "*.a" ! -name "*.dll.a"); do \
+	echo "Temporary directory created: $$tmpdir"; \
+	$(MAKE) extract-llvm-objects TMPDIR=$$tmpdir; \
+	$(MAKE) extract-std-objects TMPDIR=$$tmpdir; \
+	$(MAKE) merge-objects TMPDIR=$$tmpdir; \
+	echo "Removing temporary directory $$tmpdir"; \
+	rm -rf $$tmpdir
+
+.PHONY: extract-llvm-objects
+extract-llvm-objects:
+	@for lib in $$(find $(LLVM_INSTALL_DIR)/lib -name "*.a" ! -name "*.dll.a"); do \
 	  abs_lib=$$(cd $$(dirname $$lib) && pwd)/$$(basename $$lib); \
 	  libname=$$(basename $$lib .a); \
-	  echo "Extracting objects from $$abs_lib into $$tmpdir/$$libname/"; \
-	  mkdir -p $$tmpdir/$$libname; \
-	  (cd $$tmpdir/$$libname && ar x "$$abs_lib"); \
-	done; \
-	\
-	# 根据系统类型查找 libstdc++.a 和 libc++.a \
-	uname_str=$$(uname); \
+	  echo "Extracting objects from $$abs_lib into $(TMPDIR)/$$libname"; \
+	  mkdir -p $(TMPDIR)/$$libname; \
+	  if (cd $(TMPDIR)/$$libname && ar x "$$abs_lib"); then \
+		echo "Successfully extracted from $$abs_lib"; \
+	  else \
+		echo "[ERROR] Failed to extract from $$abs_lib"; \
+	  fi; \
+	done
+
+.PHONY: extract-std-objects
+extract-std-objects:
+	@uname_str=$$(uname); \
 	if echo "$$uname_str" | grep -qi "mingw"; then \
 	  search_dirs="/mingw64/lib"; \
 	elif echo "$$uname_str" | grep -qi "darwin"; then \
@@ -84,24 +93,34 @@ $(OUTPUT_LIB): llvm
 	for stdlib in libstdc++.a libc++.a; do \
 	  found_lib=$$(find $$search_dirs -maxdepth 2 -name "$$stdlib" 2>/dev/null | head -n1); \
 	  if [ -n "$$found_lib" ]; then \
-	    echo "Found $$stdlib at $$found_lib"; \
-	    libname=$$(basename $$found_lib .a); \
-	    mkdir -p $$tmpdir/$$libname; \
-	    (cd $$tmpdir/$$libname && ar x "$$found_lib"); \
+		echo "Found $$stdlib at $$found_lib"; \
+		libname=$$(basename $$found_lib .a); \
+		mkdir -p $(TMPDIR)/$$libname; \
+		if (cd $(TMPDIR)/$$libname && ar x "$$found_lib"); then \
+		  echo "Successfully extracted from $$found_lib"; \
+		else \
+		  echo "[ERROR] Failed to extract from $$found_lib"; \
+		fi; \
+	  else \
+		echo "$$stdlib not found in $$search_dirs"; \
 	  fi; \
-	done; \
-	\
-	# 收集所有提取出的目标文件，并创建最终的静态库 \
-	tmpfile=$$tmpdir/obj_list.txt; \
-	find $$tmpdir -type f \( -name '*.obj' -o -name '*.o' \) 2>/dev/null > $$tmpfile; \
+	done
+
+.PHONY: merge-objects
+merge-objects:
+	@tmpfile=$(TMPDIR)/obj_list.txt; \
+	echo "Generating object file list in $$tmpfile"; \
+	find $(TMPDIR) -type f -name '*.o' > $$tmpfile; \
 	if [ -s $$tmpfile ]; then \
-	  ar -qcs $(OUTPUT_LIB) @$$tmpfile; \
-	  ranlib $(OUTPUT_LIB); \
-	  echo "Created $(OUTPUT_LIB)"; \
+	  if ar -qcs $(OUTPUT_LIB) @$$tmpfile; then \
+		ranlib $(OUTPUT_LIB); \
+		echo "Created $(OUTPUT_LIB) successfully"; \
+	  else \
+		echo "[ERROR] Failed to create $(OUTPUT_LIB)"; \
+	  fi; \
 	else \
 	  echo "No object files extracted, skipping archive creation."; \
-	fi; \
-	rm -rf $$tmpdir
+	fi
 
 # Compress the output archive.
 $(OUTPUT_LIB).gz : $(OUTPUT_LIB)
