@@ -32,8 +32,8 @@ class StaticLibraryMerger:
     def _get_ar_command(self):
         """Get platform-specific ar command parameters"""
         if self.system == 'Darwin':
-            return ['ar', '-qcT']  # macOS
-        return ['ar', '-qcs']      # Linux/Windows
+            return ['ar', '-qcTL']  # macOS
+        return ['ar', '-qcsL']      # Linux/Windows
 
     def _convert_msys_path(self, path):
         """Convert Windows path to MSYS2 path using cygpath"""
@@ -82,8 +82,6 @@ class StaticLibraryMerger:
         """Find platform-specific standard library"""
         if self.system == 'Linux':
             return self._find_linux_std_lib()
-        if self.system == 'Darwin':
-            return # dynamic link for macOS
         if self.system == 'Windows':
             return self._find_windows_std_lib()
         raise RuntimeError(f"Unsupported system: {self.system}")
@@ -113,6 +111,9 @@ class StaticLibraryMerger:
     
     def extract_std_objects(self):
         """Extract standard library objects"""
+        if self.system == 'Darwin':
+            return # dynamic link libc++ for macOS
+
         try:
             std_lib = self._find_std_library()
         except Exception as e:
@@ -146,10 +147,21 @@ class StaticLibraryMerger:
             
         self.logger.info(f"Merging {len(obj_files)} object files")
 
-        self._merge_with_filelist(obj_files)
+        # Handle different argument passing methods
+        if self.system == 'Darwin':
+            self._merge_direct(obj_files)
+        else:
+            self._merge_with_filelist(obj_files)
 
         # Run ranlib after archive creation
         self._run_ranlib()
+
+    def _merge_direct(self, obj_files):
+        """Directly pass objects to ar command (macOS)"""
+        # Convert paths for macOS if needed
+        cmd = self.ar_cmd + [str(self.output_lib)] 
+        cmd += [str(p) for p in obj_files]
+        self._run_command(cmd)
 
     def _merge_with_filelist(self, obj_files):
         """Use file list with path conversion for Windows/Linux"""
