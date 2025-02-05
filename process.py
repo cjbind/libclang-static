@@ -83,7 +83,7 @@ class StaticLibraryMerger:
         if self.system == 'Linux':
             return self._find_linux_std_lib()
         if self.system == 'Darwin':
-            return self._find_macos_std_lib()
+            return # dynamic link for macOS
         if self.system == 'Windows':
             return self._find_windows_std_lib()
         raise RuntimeError(f"Unsupported system: {self.system}")
@@ -93,42 +93,6 @@ class StaticLibraryMerger:
         for path in Path('/usr/lib/gcc').rglob('libstdc++.a'):
             return path
         raise FileNotFoundError("libstdc++.a not found in /usr/lib/gcc")
-
-    def _find_macos_std_lib(self):
-        """Find libc++.a on macOS with enhanced search"""
-        try:
-            # Get SDK path using xcrun
-            sdk_path = subprocess.check_output(
-                ['xcrun', '--show-sdk-path'],
-                text=True, 
-                stderr=subprocess.PIPE
-            ).strip()
-        except subprocess.CalledProcessError as e:
-            error_msg = (
-                "Failed to find Xcode SDK path.\n"
-                "Make sure Xcode command line tools are installed.\n"
-                "Try running: xcode-select --install"
-            )
-            raise RuntimeError(error_msg) from e
-
-        # Try multiple potential locations
-        search_paths = [
-            Path(sdk_path) / 'usr/lib/libc++.a',
-            Path('/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libc++.a'),
-            Path('/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libc++.a')
-        ]
-
-        for lib_path in search_paths:
-            if lib_path.exists():
-                self.logger.debug(f"Found libc++.a at {lib_path}")
-                return lib_path
-
-        raise FileNotFoundError(
-            "libc++.a not found in standard locations.\n"
-            "Possible solutions:\n"
-            "1. Install Xcode command line tools: xcode-select --install\n"
-            "2. Verify Xcode SDK path: xcrun --show-sdk-path"
-        )
 
     def _find_windows_std_lib(self):
         """Find libstdc++.a on Windows with MSYS2 support"""
@@ -182,21 +146,10 @@ class StaticLibraryMerger:
             
         self.logger.info(f"Merging {len(obj_files)} object files")
 
-        # Handle different argument passing methods
-        if self.system == 'Darwin':
-            self._merge_direct(obj_files)
-        else:
-            self._merge_with_filelist(obj_files)
+        self._merge_with_filelist(obj_files)
 
         # Run ranlib after archive creation
         self._run_ranlib()
-
-    def _merge_direct(self, obj_files):
-        """Directly pass objects to ar command (macOS)"""
-        # Convert paths for macOS if needed
-        cmd = self.ar_cmd + [str(self.output_lib)] 
-        cmd += [str(p) for p in obj_files]
-        self._run_command(cmd)
 
     def _merge_with_filelist(self, obj_files):
         """Use file list with path conversion for Windows/Linux"""
