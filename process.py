@@ -32,8 +32,8 @@ class StaticLibraryMerger:
     def _get_ar_command(self):
         """Get platform-specific ar command parameters"""
         if self.system == 'Darwin':
-            return ['ar', '-qcTL']  # macOS
-        return ['ar', '-qcsL']      # Linux/Windows
+            return ['ar', '-qcT']  # macOS
+        return ['ar', '-qcs']      # Linux/Windows
 
     def _convert_msys_path(self, path):
         """Convert Windows path to MSYS2 path using cygpath"""
