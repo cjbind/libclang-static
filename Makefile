@@ -82,29 +82,59 @@ extract-llvm-objects:
 
 .PHONY: extract-std-objects
 extract-std-objects:
-	@uname_str=$$(uname); \
-	if echo "$$uname_str" | grep -qi "mingw"; then \
-	  search_dirs="/mingw64/lib"; \
-	elif echo "$$uname_str" | grep -qi "darwin"; then \
-	  search_dirs="/usr/lib"; \
+	@uname_str=$$(uname -s); \
+	case "$$uname_str" in \
+		Linux*)    handle_linux ;; \
+		Darwin*)   handle_macos ;; \
+		MINGW*|MSYS*) handle_mingw ;; \
+		*)         echo "Unsupported system: $$uname_str"; exit 1 ;; \
+	esac
+
+define handle_linux
+	echo "Searching for libstdc++.a in Linux..."; \
+	found_lib=$$(find /usr/lib/gcc -name 'libstdc++.a' -print -quit 2>/dev/null); \
+	if [ -n "$$found_lib" ]; then \
+		process_lib "$$found_lib"; \
 	else \
-	  search_dirs="/usr/lib /usr/local/lib"; \
+		echo "libstdc++.a not found in /usr/lib/gcc"; \
+	fi
+endef
+
+define handle_macos
+	echo "Searching for libc++.a in macOS..."; \
+	sdk_path=$$(xcrun --show-sdk-path 2>/dev/null); \
+	if [ -z "$$sdk_path" ]; then \
+		echo "[ERROR] Xcode SDK path not found"; \
+		exit 1; \
 	fi; \
-	for stdlib in libstdc++.a libc++.a; do \
-	  found_lib=$$(find $$search_dirs -maxdepth 2 -name "$$stdlib" 2>/dev/null | head -n1); \
-	  if [ -n "$$found_lib" ]; then \
-		echo "Found $$stdlib at $$found_lib"; \
-		libname=$$(basename $$found_lib .a); \
-		mkdir -p $(TMPDIR)/$$libname; \
-		if (cd $(TMPDIR)/$$libname && ar x "$$found_lib"); then \
-		  echo "Successfully extracted from $$found_lib"; \
-		else \
-		  echo "[ERROR] Failed to extract from $$found_lib"; \
-		fi; \
-	  else \
-		echo "$$stdlib not found in $$search_dirs"; \
-	  fi; \
-	done
+	found_lib=$$(find "$$sdk_path/usr/lib" -name 'libc++.a' -print -quit 2>/dev/null); \
+	if [ -n "$$found_lib" ]; then \
+		process_lib "$$found_lib"; \
+	else \
+		echo "libc++.a not found in $$sdk_path/usr/lib"; \
+	fi
+endef
+
+define handle_mingw
+	echo "Searching for libstdc++.a in MSYS2..."; \
+	found_lib=$$(find /mingw64/lib -maxdepth 1 -name 'libstdc++.a' -print -quit 2>/dev/null); \
+	if [ -n "$$found_lib" ]; then \
+		process_lib "$$found_lib"; \
+	else \
+		echo "libstdc++.a not found in /mingw64/lib"; \
+	fi
+endef
+
+define process_lib
+	echo "Found library at $1"; \
+	libname=$$(basename "$1" .a); \
+	mkdir -p "$(TMPDIR)/$$libname"; \
+	if (cd "$(TMPDIR)/$$libname" && ar x "$1"); then \
+		echo "Successfully extracted from $1"; \
+	else \
+		echo "[ERROR] Failed to extract from $1"; \
+	fi
+endef
 
 .PHONY: merge-objects
 merge-objects:
