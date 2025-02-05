@@ -28,12 +28,15 @@ jobs:
       - uses: actions/cache@v4
         id: cache
         with:
-          path: lib/llvm-19.1.7
+          path: |
+            lib/llvm-19.1.7
+            lib/llvm
+            lib/*.tar.xz
           key: linux-${{ matrix.arch }}-llvm-19.1.7
 
       - name: Build LLVM
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: make libclang-full.a.gz LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+        if: steps.cache.outputs.cache-hit != 'true' || true
+        run: make llvm LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
         env:
           SCCACHE_GHA_ENABLED: "true"
 
@@ -69,11 +72,14 @@ jobs:
       - uses: actions/cache@v4
         id: cache
         with:
-          path: lib/llvm-19.1.7
+          path: |
+            lib/llvm-19.1.7
+            lib/llvm
+            lib/*.tar.xz
           key: macos-arm64-llvm-19.1.7
 
       - name: Build LLVM
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.cache.outputs.cache-hit != 'true' || true
         run: >
           make llvm LLVM_BUILD_ARGS="
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
@@ -138,12 +144,15 @@ jobs:
       - uses: actions/cache@v4
         id: cache
         with:
-          path: lib/llvm-19.1.7
+          path: |
+            lib/llvm-19.1.7
+            lib/llvm
+            lib/*.tar.xz
           key: windows-x64-llvm-19.1.7
 
       - name: Build LLVM
         shell: msys2 {0}
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.cache.outputs.cache-hit != 'true' || true
         run: |
             SCCACHE_PATH_MSYS=$(cygpath "$SCCACHE_PATH")
             make llvm LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=$SCCACHE_PATH_MSYS -DCMAKE_CXX_COMPILER_LAUNCHER=$SCCACHE_PATH_MSYS"
