@@ -26,15 +26,21 @@ class StaticLibraryMerger:
     def _get_obj_ext(self):
         """Get platform-specific object file extension"""
         return '.obj' if self.system == 'Windows' else '.o'
+    
+    def _get_ar(self):
+        """Get platform-specific ar command"""
+        if self.system == 'Windows':
+            return 'mingw-w64-x86_64-ar'
+        return 'ar'
 
     def _get_ar_command(self):
         """Get platform-specific ar command parameters"""
         if self.system == 'Darwin':
-            return ['ar', '-qcT']
+            return [self._get_ar(), '-qcT']
         if self.system == 'Windows':
-            return ['mingw-w64-x86_64-ar', '-rcs']
+            return [self._get_ar(), '-rcs']
         if self.system == 'Linux':
-            return ['ar', '-rcs']
+            return [self._get_ar(), '-rcs']
         raise RuntimeError(f"Unsupported system: {self.system}")
 
     def _to_unix_path(self, path):
@@ -101,7 +107,8 @@ class StaticLibraryMerger:
             
             unix_lib_path = self._to_unix_path(lib_path)
             self.logger.debug(f"Extracting {unix_lib_path} to {output_dir}")
-            self._run_command(['ar', 'x', unix_lib_path], cwd=output_dir)
+
+            self._run_command([self._get_ar(), 'x', unix_lib_path], cwd=output_dir)
 
     def _find_std_library(self):
         """Find platform-specific standard library"""
@@ -152,7 +159,7 @@ class StaticLibraryMerger:
         output_dir.mkdir(parents=True, exist_ok=True)
         
         unix_std_lib = self._to_unix_path(std_lib)
-        self._run_command(['ar', 'x', unix_std_lib], cwd=output_dir)
+        self._run_command([self._get_ar(), 'x', unix_std_lib], cwd=output_dir)
 
     def merge_objects(self):
         """Merge all object files into final library"""
