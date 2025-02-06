@@ -71,6 +71,8 @@ class StaticLibraryMerger:
     def _run_command(self, cmd, cwd=None):
         """Execute command with proper path conversions"""
         # Keep cwd as native path
+        cmd = [str(arg) for arg in cmd]
+
         self.logger.info(f"Executing: {' '.join(cmd)}")
         if cwd:
             self.logger.info(f"Working directory: {cwd}")
@@ -186,8 +188,8 @@ class StaticLibraryMerger:
 
     def _merge_direct(self, obj_files):
         """Directly pass objects to ar command (macOS)"""
-        cmd = self.ar_cmd + [self.output_lib]
-        cmd += [obj_files]
+        cmd = self.ar_cmd + [str(self.output_lib)]
+        cmd += [str(obj) for obj in obj_files]
         self._run_command(cmd)
 
     def _merge_with_filelist(self, obj_files):
@@ -197,13 +199,13 @@ class StaticLibraryMerger:
             tmpfile.write(content)
             tmpfile.flush()
 
-            cmd = self.ar_cmd + [self.output_lib, f'@{tmpfile.name}']
+            cmd = self.ar_cmd + [str(self.output_lib), f'@{tmpfile.name}']
             self._run_command(cmd)
 
     def _run_ranlib(self):
         """Execute ranlib if needed"""
         self.logger.info("Running ranlib")
-        self._run_command(['ranlib', self.output_lib])
+        self._run_command(['ranlib', str(self.output_lib)])
 
     def merge_libraries(self):
         """Main merging workflow"""
@@ -216,7 +218,7 @@ class StaticLibraryMerger:
                 self.extract_llvm_objects()
                 self.merge_objects()
             except Exception as e:
-                self.logger.error(f"Merging failed: {e}")
+                self.logger.error(f"Merging failed: {e}", exc_info=True)
                 raise
 
 def configure_logging(verbose=False):
