@@ -194,14 +194,15 @@ class StaticLibraryMerger:
 
     def _merge_with_filelist(self, obj_files):
         """Use file list for Windows/Linux"""
-        with tempfile.NamedTemporaryFile(mode='w+') as tmpfile:
-            obj_files = [str(obj) for obj in obj_files]
-            content = '\n'.join(obj_files)
-            tmpfile.write(content)
-            tmpfile.flush()
 
-            cmd = self.ar_cmd + [str(self.output_lib), f'@{tmpfile.name}']
-            self._run_command(cmd)
+        obj_files = [str(obj) for obj in obj_files]
+        content = '\n'.join(obj_files)
+        with open('tmpfile.txt', 'w') as f:
+            f.write(content)
+
+
+        cmd = self.ar_cmd + [str(self.output_lib), '@tmpfile.txt']
+        self._run_command(cmd)
 
     def _run_ranlib(self):
         """Execute ranlib if needed"""
