@@ -37,6 +37,9 @@ class StaticLibraryMerger:
     
     def _get_ar(self):
         """Get platform-specific ar command"""
+        if self.system == "Windows":
+            return self._to_win_path("/mingw64/bin/ar.exe")
+
         return 'ar'
 
     def _get_ar_command(self):
@@ -48,22 +51,6 @@ class StaticLibraryMerger:
         if self.system == 'Linux':
             return [self._get_ar(), '-rcs']
         raise RuntimeError(f"Unsupported system: {self.system}")
-
-    def _to_unix_path(self, path):
-        """Convert path to Unix-style using cygpath -u (Windows only)"""
-        if self.system != 'Windows':
-            return str(path)
-        try:
-            result = subprocess.run(
-                ['cygpath', '-u', str(path)],
-                check=True,
-                capture_output=True,
-                text=True
-            )
-            return result.stdout.strip()
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Unix path conversion failed: {e.stderr.strip()}")
-            raise
 
     def _to_win_path(self, path):
         """Convert path to Windows-style using cygpath -w (Windows only)"""
@@ -83,15 +70,13 @@ class StaticLibraryMerger:
 
     def _run_command(self, cmd, cwd=None):
         """Execute command with proper path conversions"""
-        # Convert all path arguments to Unix-style
-        converted_cmd = [self._to_unix_path(arg) if Path(arg).exists() else arg for arg in cmd]
         # Keep cwd as native path
-        self.logger.info(f"Executing: {' '.join(converted_cmd)}")
+        self.logger.info(f"Executing: {' '.join(cmd)}")
         if cwd:
             self.logger.info(f"Working directory: {cwd}")
         try:
             subprocess.run(
-                converted_cmd,
+                cmd,
                 cwd=str(cwd) if cwd else None,
                 check=True
             )
@@ -117,10 +102,9 @@ class StaticLibraryMerger:
             output_dir = self.tmpdir / lib_name
             output_dir.mkdir(parents=True, exist_ok=True)
             
-            unix_lib_path = self._to_unix_path(lib_path)
-            self.logger.info(f"Extracting {unix_lib_path} to {output_dir}")
+            self.logger.info(f"Extracting {lib_path} to {output_dir}")
 
-            self._run_command([self._get_ar(), 'x', unix_lib_path], cwd=output_dir)
+            self._run_command([self._get_ar(), 'x', lib_path], cwd=output_dir)
 
     def _find_std_library(self):
         """Find platform-specific standard library"""
@@ -170,8 +154,7 @@ class StaticLibraryMerger:
         output_dir = self.tmpdir / lib_name
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        unix_std_lib = self._to_unix_path(std_lib)
-        self._run_command([self._get_ar(), 'x', unix_std_lib], cwd=output_dir)
+        self._run_command([self._get_ar(), 'x', std_lib], cwd=output_dir)
 
     def merge_objects(self):
         """Merge all object files into final library"""
@@ -203,28 +186,24 @@ class StaticLibraryMerger:
 
     def _merge_direct(self, obj_files):
         """Directly pass objects to ar command (macOS)"""
-        unix_output = self._to_unix_path(self.output_lib)
-        cmd = self.ar_cmd + [unix_output]
-        cmd += [self._to_unix_path(p) for p in obj_files]
+        cmd = self.ar_cmd + [self.output_lib]
+        cmd += [obj_files]
         self._run_command(cmd)
 
     def _merge_with_filelist(self, obj_files):
         """Use file list for Windows/Linux"""
         with tempfile.NamedTemporaryFile(mode='w+') as tmpfile:
-            # Write Unix-style paths to the file list
-            content = '\n'.join(self._to_unix_path(p) for p in obj_files)
+            content = '\n'.join(obj_files)
             tmpfile.write(content)
             tmpfile.flush()
 
-            unix_output = self._to_unix_path(self.output_lib)
-            cmd = self.ar_cmd + [unix_output, f'@{tmpfile.name}']
+            cmd = self.ar_cmd + [self.output_lib, f'@{tmpfile.name}']
             self._run_command(cmd)
 
     def _run_ranlib(self):
         """Execute ranlib if needed"""
         self.logger.info("Running ranlib")
-        unix_output = self._to_unix_path(self.output_lib)
-        self._run_command(['ranlib', unix_output])
+        self._run_command(['ranlib', self.output_lib])
 
     def merge_libraries(self):
         """Main merging workflow"""
