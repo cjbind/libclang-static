@@ -195,6 +195,7 @@ class StaticLibraryMerger:
     def _merge_with_filelist(self, obj_files):
         """Use file list for Windows/Linux"""
         with tempfile.NamedTemporaryFile(mode='w+') as tmpfile:
+            obj_files = [str(obj) for obj in obj_files]
             content = '\n'.join(obj_files)
             tmpfile.write(content)
             tmpfile.flush()
