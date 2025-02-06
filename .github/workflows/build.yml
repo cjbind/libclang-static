@@ -158,10 +158,14 @@ jobs:
             export SCCACHE_GHA_ENABLED="true"
             make llvm LLVM_BUILD_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=$SCCACHE_PATH_MSYS -DCMAKE_CXX_COMPILER_LAUNCHER=$SCCACHE_PATH_MSYS"
 
-#      - name: Build libclang-full
-#        shell: msys2 {0}
-#        run: |
-#            make libclang-full.a.gz
+      - name: Build libclang-full
+        shell: msys2 {0}
+        run: |
+            make libclang-full.a.gz
+
+      - name: Setup tmate session
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
